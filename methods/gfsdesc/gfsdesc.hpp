@@ -9,6 +9,8 @@
 #define  GFSDESC_HPP
 
 #include <common/locsearch.hpp>
+#include <common/lineseach.hpp>
+#include <common/dummyls.hpp>
 #include <common/vec.hpp>
 #include <box/boxutils.hpp>
 #include <common/sgerrcheck.hpp>
@@ -36,7 +38,7 @@ namespace LOCSEARCH {
              * @param fval function value
              * @param n current step number 
              */
-            virtual bool stopnow(FT xdiff, FT fdiff, FT gmin, FT fval, int n) = 0 ;
+            virtual bool stopnow(FT xdiff, FT fdiff, FT gmin, FT fval, int n) = 0;
         };
 
         /**
@@ -73,12 +75,14 @@ namespace LOCSEARCH {
 
         /**
          * The constructor
-         *
-         * @param box bounding box
+         * @param prob - reference to the problem
+         * @param stopper - reference to the stopper
+         * @param ls - pointer to the line search
          */
-        GFSDesc(const COMPI::MPProblem<FT>& prob, Stopper& stopper) :
+        GFSDesc(const COMPI::MPProblem<FT>& prob, Stopper& stopper, LineSearch<FT>* ls = nullptr) :
         mProblem(prob),
-        mStopper(stopper) {
+        mStopper(stopper),
+        mLS(ls) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
             SG_ASSERT(typ = COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
@@ -180,10 +184,18 @@ namespace LOCSEARCH {
 
 
                 if (!mOptions.mOnlyCoordinateDescent) {
-                    snowgoose::VecUtils::vecSaxpy(n, x, g, -h / s, xk);
-                    //VecUtils::vecSaxpy(n, x, g, h * 1. / gmin, xk);
-                    //VecUtils::vecSaxpy(n, x, g, 1. / gmin, xk);
-                    snowgoose::BoxUtils::project(xk, *(mProblem.mBox));
+                    if (mLS == nullptr) {
+                        snowgoose::VecUtils::vecSaxpy(n, x, g, -h / s, xk);
+                        //VecUtils::vecSaxpy(n, x, g, h * 1. / gmin, xk);
+                        //VecUtils::vecSaxpy(n, x, g, 1. / gmin, xk);
+                        snowgoose::BoxUtils::project(xk, *(mProblem.mBox));
+                    } else {
+                        FT rg[n];
+                        FT vv;
+                        snowgoose::VecUtils::vecCopy(n, x, xk);
+                        snowgoose::VecUtils::vecMult(n, g, -h / s, rg);
+                        mLS->search(rg, xk, vv);
+                    }
                     u = obj->func(xk);
                 }
 
@@ -196,6 +208,10 @@ namespace LOCSEARCH {
                 FT fdiff = u - uold;
                 if (mStopper.stopnow(xdiff, fdiff, gmin, uold, k)) {
                     rv = true;
+                    if (u < uold) {
+                        snowgoose::VecUtils::vecCopy(n, xk, x);
+                        uold = u;
+                    }
                     break;
                 }
                 if (u >= uold) {
@@ -237,7 +253,7 @@ namespace LOCSEARCH {
 
         Stopper &mStopper;
         const COMPI::MPProblem<FT>& mProblem;
-
+        LineSearch<FT>* mLS;
         Options mOptions;
     };
 }
