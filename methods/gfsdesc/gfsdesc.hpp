@@ -172,6 +172,9 @@ namespace LOCSEARCH {
 
             int k = 0;
             FT xk[n];
+            
+            
+            
             for (;;) {
                 k++;
                 double s = getg();
