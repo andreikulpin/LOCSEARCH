@@ -17,7 +17,7 @@ public:
 
     bool stopnow(double xdiff, double fdiff, double gmin, double fval, int n) {
         mCnt++;
-        if (fval < 1e-3)
+        if (gmin < 1e-3)
             return true;
         else
             return false;
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
 
     GFSStopper stp;
 
-#if 0      
+#if 1      
     LOCSEARCH::GFSDesc<double> desc(*mpp, stp, &ls);
 #else
     LOCSEARCH::GFSDesc<double> desc(*mpp, stp);
