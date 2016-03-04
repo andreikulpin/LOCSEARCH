@@ -6,7 +6,7 @@
  */
 
 #ifndef DICHOTLS_HPP
-#define	DICHOTLS_HPP
+#define DICHOTLS_HPP
 
 #include <common/lineseach.hpp>
 #include <mpproblem.hpp>
@@ -77,21 +77,21 @@ namespace LOCSEARCH {
             FT S = 0;
             auto trystep = [&] () {
                 snowgoose::VecUtils::vecSaxpy(n, x, d, S + s, xk);
-                if(COMPI::MPUtils::isFeasible(mProblem, xk)) {
+                if (COMPI::MPUtils::isFeasible(mProblem, xk)) {
                     vn = obj->func(xk);
-                    if(vn < v)
+                    if (vn < v)
                         return true;
-                    else 
+                    else
                         return false;
-                } else 
+                } else
                     return false;
             };
-            
+
             for (;; k++) {
                 if (mStopper.stopnow(s, k, vo, vn))
                     break;
                 vo = v;
-                if(!trystep()) {
+                if (!trystep()) {
                     s *= mOptions.mSlowDown;
                     continue;
                 } else {
@@ -104,6 +104,10 @@ namespace LOCSEARCH {
             if (rv)
                 snowgoose::VecUtils::vecCopy(n, xk, x);
             return rv;
+        }
+
+        std::string about() const {
+            return "Dichotomic line search";
         }
 
         /**
@@ -122,5 +126,5 @@ namespace LOCSEARCH {
     };
 }
 
-#endif	/* DICHOTLS_HPP */
+#endif /* DICHOTLS_HPP */
 

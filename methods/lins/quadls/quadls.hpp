@@ -153,6 +153,11 @@ namespace LOCSEARCH {
             return rv;
         }
 
+        
+        std::string about() const {
+            return "Quadratic approximation grad free line search";
+        }
+        
         /**
          * Retrieve options reference
          * @return options reference

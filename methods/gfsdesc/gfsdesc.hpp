@@ -8,6 +8,7 @@
 #ifndef GFSDESC_HPP
 #define  GFSDESC_HPP
 
+#include <sstream>
 #include <common/locsearch.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
@@ -16,6 +17,7 @@
 #include <common/sgerrcheck.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
+
 
 namespace LOCSEARCH {
 
@@ -66,11 +68,6 @@ namespace LOCSEARCH {
              * Upper bound on granularity
              */
             FT mHUB = 1e+02;
-            /**
-             * Performs only coordinate descent if true
-             */
-            bool mOnlyCoordinateDescent = false;
-
         };
 
         /**
@@ -172,9 +169,9 @@ namespace LOCSEARCH {
 
             int k = 0;
             FT xk[n];
-            
-            
-            
+
+
+
             for (;;) {
                 k++;
                 double s = getg();
@@ -186,23 +183,21 @@ namespace LOCSEARCH {
 
 
 
-                if (!mOptions.mOnlyCoordinateDescent) {
-                    if (mLS == nullptr) {
-                        snowgoose::VecUtils::vecSaxpy(n, x, g, -h / s, xk);
-                        //VecUtils::vecSaxpy(n, x, g, h * 1. / gmin, xk);
-                        //VecUtils::vecSaxpy(n, x, g, 1. / gmin, xk);
-                        snowgoose::BoxUtils::project(xk, *(mProblem.mBox));
-                    } else {
-                        FT rg[n];
-                        FT vv;
-                        snowgoose::VecUtils::vecCopy(n, x, xk);
-                        snowgoose::VecUtils::vecMult(n, g, -h / s, rg);
-                        mLS->search(rg, xk, vv);
-                    }
-                    u = obj->func(xk);
+                if (mLS == nullptr) {
+                    snowgoose::VecUtils::vecSaxpy(n, x, g, -h / s, xk);
+                    //VecUtils::vecSaxpy(n, x, g, h * 1. / gmin, xk);
+                    //VecUtils::vecSaxpy(n, x, g, 1. / gmin, xk);
+                    snowgoose::BoxUtils::project(xk, *(mProblem.mBox));
+                } else {
+                    FT rg[n];
+                    FT vv;
+                    snowgoose::VecUtils::vecCopy(n, x, xk);
+                    snowgoose::VecUtils::vecMult(n, g, -h / s, rg);
+                    mLS->search(rg, xk, vv);
                 }
+                u = obj->func(xk);
 
-                if (mOptions.mOnlyCoordinateDescent || (u > uold + gmin)) {
+                if (u > uold + gmin) {
                     snowgoose::VecUtils::vecCopy(n, x, xk);
                     xk[imin] = x[imin] + sft[imin];
                     u = uold + gmin;
@@ -230,6 +225,19 @@ namespace LOCSEARCH {
             v = uold;
 
             return rv;
+        }
+
+        std::string about() const {
+            std::ostringstream os;
+            os << "Gradient free descent method\n";
+            os << "Initial step = " << mOptions.mHInit << "\n";
+            os << "Increment multiplier = " << mOptions.mInc << "\n";
+            os << "Decrement multiplier = " << mOptions.mDec << "\n";
+            os << "Upper bound on the step = " << mOptions.mHUB << "\n";
+            os << "Lower bound on the step = " << mOptions.mHLB << "\n";
+            if(mLS != nullptr)
+                os << "Line search: " << mLS->about() << "\n";
+            return os.str();
         }
 
         /**

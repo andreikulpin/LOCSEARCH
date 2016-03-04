@@ -8,6 +8,7 @@
 #ifndef COORDESC_HPP
 #define  COORDESC_HPP
 
+#include <sstream>
 #include <common/locsearch.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
@@ -16,6 +17,7 @@
 #include <common/sgerrcheck.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
+
 
 namespace LOCSEARCH {
 
@@ -157,6 +159,17 @@ namespace LOCSEARCH {
             }
             v = fcur;
             return rv;
+        }
+        
+        std::string about() const {
+            std::ostringstream os;
+            os << "Coordinate descent method\n";
+            os << "Initial step = " << mOptions.mHInit << "\n";
+            os << "Increment multiplier = " << mOptions.mInc << "\n";
+            os << "Decrement multiplier = " << mOptions.mDec << "\n";
+            os << "Upper bound on the step = " << mOptions.mHUB << "\n";
+            os << "Lower bound on the step = " << mOptions.mHLB << "\n";                    
+            return os.str();
         }
 
         /**

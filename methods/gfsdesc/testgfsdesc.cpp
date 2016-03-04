@@ -97,9 +97,6 @@ int main(int argc, char** argv) {
     LOCSEARCH::GFSDesc<double> desc(*mpp, stp);
 #endif    
 
-#if 0
-    desc.getOptions().mOnlyCoordinateDescent = true;
-#endif
 
     desc.getOptions().mHInit = .1;
 
@@ -109,6 +106,7 @@ int main(int argc, char** argv) {
         x[i] = i;
     double v;
     bool rv = desc.search(x, v);
+    std::cout << desc.about() << "\n";
     std::cout << "In " << stp.mCnt << " iterations found v = " << v << "\n";
     //std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
     std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";

@@ -14,25 +14,35 @@
 #ifndef LOCSEARCH_HPP
 #define LOCSEARCH_HPP
 
+#include <string>
+
 namespace LOCSEARCH {
-    
+
     /**
      * Abstract class for local search methods
      */
     template <class FT> class LocalSearch {
-        public:
-            
-            /**
-             * Searches for the optimial value
-             * @param x starting point at the beginning and the result at the end
-             * @param v on the exit - found value
-             * @return true if the search was successul, false if 
-             *         no improvement was obtained
-             */
-            virtual bool search(FT* x, FT& v) = 0;
+    public:
+
+        /**
+         * Searches for the optimial value
+         * @param x starting point at the beginning and the result at the end
+         * @param v on the exit - found value
+         * @return true if the search was successul, false if 
+         *         no improvement was obtained
+         */
+        virtual bool search(FT* x, FT& v) = 0;
+
+        /**
+         * Information about the  solver
+         * @return information
+         */
+        virtual std::string about() const {
+            return "No information about solver";
+        }
     };
-    
-    
+
+
 }
 
 
