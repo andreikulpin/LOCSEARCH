@@ -5,5 +5,6 @@
 all dep clean indent tests::	
 	cd coordesc && $(MAKE) $@ && cd .. \\
 	cd gfsdesc && $(MAKE) $@ && cd .. \\
+	cd hookejeeves && $(MAKE) $@ && cd .. \\
 	cd lins  && $(MAKE) $@ && cd .. 
 

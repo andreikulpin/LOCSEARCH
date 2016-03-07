@@ -80,7 +80,7 @@ namespace LOCSEARCH {
         mProblem(prob),
         mStopper(stopper) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            SG_ASSERT(typ = COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
+            SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
         /**
@@ -101,7 +101,6 @@ namespace LOCSEARCH {
 
             // One step
             auto step = [&] () {
-                bool succ = false;
                 FT xd = 0;
                 for (int i = 0; i < n; i++) {
                     FT y = x[i] - h;

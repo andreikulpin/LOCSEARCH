@@ -81,7 +81,7 @@ namespace LOCSEARCH {
         mStopper(stopper),
         mLS(ls) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            SG_ASSERT(typ = COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
+            SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
         /**

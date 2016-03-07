@@ -23,12 +23,11 @@ public:
     int mCnt = 0;
 };
 
-
 /*
  * 
  */
 int main(int argc, char** argv) {
-    const int n = 1000;
+    const int n = 10;
     OPTITEST::DejongProblemFactory fact(n, -4, 8);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
     COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
@@ -44,14 +43,15 @@ int main(int argc, char** argv) {
     double x[n];
 
     for (int i = 0; i < n; i++)
-        x[i] = i;
+        x[i] = i * 100 + 1;
     double v;
     bool rv = desc.search(x, v);
-    std::cout <<  desc.about() << "\n";
+    std::cout << desc.about() << "\n";
     std::cout << "In " << stp.mCnt << " iterations found v = " << v << "\n";
-    //std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
+    std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
     std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
-
+    SG_ASSERT(v <= 0.01);
+    
     return 0;
 }
 
