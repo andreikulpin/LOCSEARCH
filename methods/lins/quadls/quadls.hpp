@@ -66,7 +66,7 @@ namespace LOCSEARCH {
 
         bool search(const FT* d, FT* x, FT& v) {
             FT s = mOptions.mSInit;
-            int n = mProblem.mVarTypes.size();
+            const int n = mProblem.mVarTypes.size();
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
             FT xk[n];
             FT vo = obj->func(x);
@@ -113,7 +113,7 @@ namespace LOCSEARCH {
             auto trystep = [&] (FT stp) {
                 if (stp <= 0)
                     return false;
-                snowgoose::VecUtils::vecSaxpy(n, x, d, stp, xk);
+                //snowgoose::VecUtils::vecSaxpy(n, x, d, stp, xk);
                 if (COMPI::MPUtils::isFeasible(mProblem, xk)) {
                     vn = obj->func(xk);
                     if (vn < v)
