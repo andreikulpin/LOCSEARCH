@@ -1,13 +1,16 @@
-/* 
- * File:   bbboxdesc.hpp
- * Author: medved
- *
- * Created on November 3, 2015, 5:05 PM
+/*
+ * Coordinate descent for constrained problems that uses projection
  */
 
-#ifndef COORDESC_HPP
-#define  COORDESC_HPP
+/* 
+ * File:   conscoordesc.hpp
+ * Author: posypkin
+ *
+ * Created on October 28, 2016, 8:43 PM
+ */
 
+#ifndef CONSCOORDESC_HPP
+#define CONSCOORDESC_HPP
 #include <sstream>
 #include <functional>
 #include <common/locsearch.hpp>
@@ -23,19 +26,16 @@
 namespace LOCSEARCH {
 
     /**
-     * Simple coordinate descen for box constrained problems
+     * Simple coordinate descen for constrained problems
      */
-    template <typename FT> class CoorDesc : public LocalSearch <FT> {
+    template <typename FT> class ProjCoorDesc : public LocalSearch <FT> {
     public:
 
         /**
          * Determines stopping conditions
-         * @param xdiff - distance between next and previous x
-         * @param fdiff - difference between next and previous f value
-         * @param gram - current granularity
-         * @param n - current step number
          */
-        typedef std::function<bool(FT xdiff, FT fdiff, FT gran, FT fval, int n) > Stopper;
+        typedef std::function<bool(FT xdiff, FT fdiff, FT gran, FT fval, int n)> Stopper;
+        
 
         /**
          * Options for Gradient Box Descent method
@@ -67,17 +67,20 @@ namespace LOCSEARCH {
         /**
          * The constructor
          * @param prob - reference to the problem
-         * @param stopper - reference to the stopper (copies stopper)
+         * @param stopper - reference to the stopper
          * @param ls - pointer to the line search
+         * @param projector - projector function
          */
-        CoorDesc(const COMPI::MPProblem<FT>& prob, const Stopper& stopper) :
+        ProjCoorDesc(const COMPI::MPProblem<FT>& prob,
+                const Stopper& stopper,
+                const std::function<void(FT*)>& projector) :
         mProblem(prob),
-        mStopper(stopper) {
+        mStopper(stopper),
+        mProjector(projector) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
+            SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
-        
         /**
          * Perform search
          * @param x start point and result
@@ -86,48 +89,41 @@ namespace LOCSEARCH {
          */
         bool search(FT* x, FT& v) {
             bool rv = false;
-            
+
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
-            snowgoose::BoxUtils::project(x, *(mProblem.mBox));
+            mProjector(x);
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();
             FT h = mOptions.mHInit;
             const snowgoose::Box<double>& box = *(mProblem.mBox);
+            FT y[n];
+            FT z[n];
 
             // One step
             auto step = [&] () {
-                FT xd = 0;
+                snowgoose::VecUtils::vecCopy(n, x, z);
                 for (int i = 0; i < n; i++) {
-                    FT y = x[i] - h;
-                    if (y < box.mA[i]) {
-                        y = box.mA[i];
-                    }
-                    FT tmp = x[i];
-                    x[i] = y;
+                    snowgoose::VecUtils::vecCopy(n, x, y);
+                    x[i] -= h;
+                    mProjector(x);
                     FT fn = obj->func(x);
                     if (fn >= fcur) {
-                        x[i] = tmp;
+                        snowgoose::VecUtils::vecCopy(n, y, x);
                     } else {
                         fcur = fn;
-                        xd += h * h;
                         continue;
                     }
 
-                    y = x[i] + h;
-                    if (y > box.mB[i]) {
-                        y = box.mB[i];
-                    }
-                    tmp = x[i];
-                    x[i] = y;
+                    x[i] += h;
+                    mProjector(x);
                     fn = obj->func(x);
                     if (fn >= fcur) {
-                        x[i] = tmp;
+                        snowgoose::VecUtils::vecCopy(n, y, x);
                     } else {
-                        fcur = fn;
-                        xd += h * h;
-                        continue;
+                        fcur = fn;                        
                     }
                 }
+                FT xd = snowgoose::VecUtils::vecDist(n, z, x);
                 return xd;
             };
 
@@ -157,7 +153,7 @@ namespace LOCSEARCH {
 
         std::string about() const {
             std::ostringstream os;
-            os << "Coordinate descent method\n";
+            os << "Projected coordinate descent method\n";
             os << "Initial step = " << mOptions.mHInit << "\n";
             os << "Increment multiplier = " << mOptions.mInc << "\n";
             os << "Decrement multiplier = " << mOptions.mDec << "\n";
@@ -176,12 +172,15 @@ namespace LOCSEARCH {
 
     private:
 
-
         Stopper mStopper;
         const COMPI::MPProblem<FT>& mProblem;
         Options mOptions;
+        std::function<void(FT* x)> mProjector;
     };
 }
 
-#endif /* GFSDESC_HPP */
+
+
+
+#endif /* CONSCOORDESC_HPP */
 
