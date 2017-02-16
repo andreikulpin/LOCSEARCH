@@ -45,7 +45,6 @@ namespace LOCSEARCH {
              * Initial value of granularity
              */
             FT mHInit = 0.01;
-
             /**
              * Increase in the case of success
              */
@@ -62,6 +61,11 @@ namespace LOCSEARCH {
              * Upper bound on granularity
              */
             FT mHUB = 1e+02;
+            /**
+             * Shifts along coordinate directions, by default it is a vector of ones. Used if we need different shifts 
+             * along different coordinates.
+             */
+            std::vector<FT> mShifts;
         };
 
         /**
@@ -74,10 +78,10 @@ namespace LOCSEARCH {
         mProblem(prob),
         mStopper(stopper) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
+            mOptions.mShifts.assign(prob.mVarTypes.size(), 1);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
-        
         /**
          * Perform search
          * @param x start point and result
@@ -86,7 +90,7 @@ namespace LOCSEARCH {
          */
         bool search(FT* x, FT& v) {
             bool rv = false;
-            
+
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
             snowgoose::BoxUtils::project(x, *(mProblem.mBox));
             FT fcur = obj->func(x);
@@ -98,7 +102,8 @@ namespace LOCSEARCH {
             auto step = [&] () {
                 FT xd = 0;
                 for (int i = 0; i < n; i++) {
-                    FT y = x[i] - h;
+                    FT dh = h * mOptions.mShifts[i];
+                    FT y = x[i] - dh;
                     if (y < box.mA[i]) {
                         y = box.mA[i];
                     }
@@ -109,11 +114,11 @@ namespace LOCSEARCH {
                         x[i] = tmp;
                     } else {
                         fcur = fn;
-                        xd += h * h;
+                        xd += dh * dh;
                         continue;
                     }
 
-                    y = x[i] + h;
+                    y = x[i] + dh;
                     if (y > box.mB[i]) {
                         y = box.mB[i];
                     }
@@ -124,7 +129,7 @@ namespace LOCSEARCH {
                         x[i] = tmp;
                     } else {
                         fcur = fn;
-                        xd += h * h;
+                        xd += dh * dh;
                         continue;
                     }
                 }

@@ -12,10 +12,10 @@
 #include <methods/lins/quadls/quadls.hpp>
 #include "varcoordesc.hpp"
 
-class CoorStopper : public LOCSEARCH::VarCoorDesc<double>::Stopper {
+class CoorStopper {
 public:
 
-    bool stopnow(double xdiff, double fdiff, const double* gran, double fval, int n) {
+    bool operator()(double xdiff, double fdiff, const std::vector<double>& gran, double fval, int n) {
         mCnt++;
         return false;
     }

@@ -9,6 +9,8 @@
 #define  VARCOORDESC_HPP
 
 #include <sstream>
+#include <vector>
+#include <functional>
 #include <common/locsearch.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
@@ -22,26 +24,21 @@
 namespace LOCSEARCH {
 
     /**
-     * Coordinate descent for box constrained problems with variing steps along directions
+     * Coordinate descent for box constrained problems with unequal dynamically adjacent
+     * steps along directions
      */
     template <typename FT> class VarCoorDesc : public LocalSearch <FT> {
     public:
-
+        
         /**
          * Determines stopping conditions
+         * @param xdiff - distance between next and previous x
+         * @param fdiff - difference between next and previous f value
+         * @param gram - current granularity
+         * @param n - current step number
          */
-        class Stopper {
-        public:
-            /**
-             * Returns true when the search should stop
-             * @param xdiff difference between old and new x
-             * @param fdiff difference between old and new f value
-             * @param gran current granularity
-             * @param fval function value
-             * @param n current step number 
-             */
-            virtual bool stopnow(FT xdiff, FT fdiff, const FT* gran, FT fval, int n) = 0;
-        };
+        typedef std::function<bool(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Stopper;
+
 
         /**
          * Options for Gradient Box Descent method
@@ -68,6 +65,11 @@ namespace LOCSEARCH {
              * Upper bound on granularity
              */
             FT mHUB = 1e+02;
+            /**
+             * Shifts along coordinate directions, by default it is a vector of ones. Used if we need different shifts 
+             * along different coordinates.
+             */
+            std::vector<FT> mShifts;
         };
 
         /**
@@ -76,18 +78,14 @@ namespace LOCSEARCH {
          * @param stopper - reference to the stopper
          * @param ls - pointer to the line search
          */
-        VarCoorDesc(const COMPI::MPProblem<FT>& prob, Stopper& stopper) :
+        VarCoorDesc(const COMPI::MPProblem<FT>& prob, const Stopper& stopper) :
         mProblem(prob),
         mStopper(stopper) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
+            mOptions.mShifts.assign(prob.mVarTypes.size(), 1);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
-            int n = prob.mBox->mDim;
-            mSft = new FT [n];
         }
 
-        ~VarCoorDesc() {
-            delete [] mSft;
-        }
 
         /**
          * Perform search
@@ -97,22 +95,21 @@ namespace LOCSEARCH {
          */
         bool search(FT* x, FT& v) {
             bool rv = false;
-
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
             snowgoose::BoxUtils::project(x, *(mProblem.mBox));
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();
-            for (int i = 0; i < n; i++) {
-                mSft[i] = mOptions.mHInit;
-            }
             const snowgoose::Box<double>& box = *(mProblem.mBox);
+            std::vector<FT> sft;
+            sft.assign(n, mOptions.mHInit);
 
             // One step
             auto step = [&] () {
                 FT xd = 0;
                 for (int i = 0; i < n; i++) {
-                    FT h = mSft[i];
-                    FT y = x[i] - h;
+                    FT h = sft[i];
+                    FT dh = h *  mOptions.mShifts[i];
+                    FT y = x[i] - dh;
                     if (y < box.mA[i]) {
                         y = box.mA[i];
                     }
@@ -124,13 +121,13 @@ namespace LOCSEARCH {
                     } else {
                         FT t = h * mOptions.mInc;                        
                         t = SGMIN(t, mOptions.mHUB);
-                        mSft[i] = t;
+                        sft[i] = t;
                         fcur = fn;
-                        xd += h * h;
+                        xd += dh * dh;
                         continue;
                     }
 
-                    y = x[i] + h;
+                    y = x[i] + dh;
                     if (y > box.mB[i]) {
                         y = box.mB[i];
                     }
@@ -140,14 +137,14 @@ namespace LOCSEARCH {
                     if (fn >= fcur) {
                         FT t = h * mOptions.mDec;                        
                         t = SGMAX(t, mOptions.mHLB);
-                        mSft[i] = t;
+                        sft[i] = t;
                         x[i] = tmp;
                     } else {
                         FT t = h * mOptions.mInc;                        
                         t = SGMIN(t, mOptions.mHUB);
-                        mSft[i] = t;
+                        sft[i] = t;
                         fcur = fn;
-                        xd += h * h;
+                        xd += dh * dh;
                         continue;
                     }
                 }
@@ -163,11 +160,11 @@ namespace LOCSEARCH {
                 if (fcur < fold) {
                     rv = true;
                 } else {
-                    FT H = snowgoose::VecUtils::maxAbs(n, mSft, nullptr);
+                    FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
                     if (H <= mOptions.mHLB)
                         break;                    
                 }
-                if (mStopper.stopnow(xdiff, fdiff, mSft, fcur, sn)) {
+                if (mStopper(xdiff, fdiff, sft, fcur, sn)) {
                     break;
                 }
 
@@ -209,11 +206,10 @@ namespace LOCSEARCH {
         }
          */
 
-        Stopper &mStopper;
+        Stopper mStopper;
         const COMPI::MPProblem<FT>& mProblem;
         LineSearch<FT>* mLS;
         Options mOptions;
-        FT* mSft;
     };
 }
 
