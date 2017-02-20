@@ -34,11 +34,19 @@ namespace LOCSEARCH {
          * Determines stopping conditions
          * @param xdiff - distance between next and previous x
          * @param fdiff - difference between next and previous f value
-         * @param gram - current granularity
+         * @param gran - current granularity vector
          * @param n - current step number
          */
         typedef std::function<bool(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Stopper;
 
+        /**
+         * Watches the current step
+         * @param xdiff - distance between next and previous x
+         * @param fdiff - difference between next and previous f value
+         * @param gran - current granularity vector
+         * @param n - current step number
+         */
+        typedef std::function<void(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Watcher;
 
         /**
          * Options for Gradient Box Descent method
@@ -164,6 +172,9 @@ namespace LOCSEARCH {
                     if (H <= mOptions.mHLB)
                         break;                    
                 }
+                for(auto w : mWatchers) {
+                    w(xdiff, fdiff, sft, fcur, sn);
+                }
                 if (mStopper(xdiff, fdiff, sft, fcur, sn)) {
                     break;
                 }
@@ -192,6 +203,14 @@ namespace LOCSEARCH {
             return mOptions;
         }
 
+        /**
+         * Get watchers' vector
+         * @return watchers vector
+         */
+        std::vector<Watcher>& getWatchers() {
+            return mWatchers;
+        }
+        
     private:
 
         /*
@@ -210,6 +229,8 @@ namespace LOCSEARCH {
         const COMPI::MPProblem<FT>& mProblem;
         LineSearch<FT>* mLS;
         Options mOptions;
+        std::vector<Watcher> mWatchers;
+        
     };
 }
 

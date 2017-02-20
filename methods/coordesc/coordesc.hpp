@@ -23,7 +23,7 @@
 namespace LOCSEARCH {
 
     /**
-     * Simple coordinate descen for box constrained problems
+     * Simple coordinate descent for box constrained problems
      */
     template <typename FT> class CoorDesc : public LocalSearch <FT> {
     public:
@@ -32,10 +32,20 @@ namespace LOCSEARCH {
          * Determines stopping conditions
          * @param xdiff - distance between next and previous x
          * @param fdiff - difference between next and previous f value
-         * @param gram - current granularity
+         * @param gran - current granularity
          * @param n - current step number
+         * @return true if search should stop
          */
         typedef std::function<bool(FT xdiff, FT fdiff, FT gran, FT fval, int n) > Stopper;
+
+        /**
+         * Watches the step data
+         * @param xdiff - distance between next and previous x
+         * @param fdiff - difference between next and previous f value
+         * @param gran - current granularity
+         * @param n - current step number
+         */
+        typedef std::function<void(FT xdiff, FT fdiff, FT gran, FT fval, int n) > Watcher;
 
         /**
          * Options for Gradient Box Descent method
@@ -151,6 +161,11 @@ namespace LOCSEARCH {
                         break;
                     h *= mOptions.mDec;
                 }
+
+                for (auto w : mWatchers) {
+                    w(xdiff, fdiff, h, fcur, sn);
+                }
+
                 if (mStopper(xdiff, fdiff, h, fcur, sn)) {
                     break;
                 }
@@ -179,12 +194,22 @@ namespace LOCSEARCH {
             return mOptions;
         }
 
+        /**
+         * Get watchers' vector
+         * @return watchers vector
+         */
+        std::vector<Watcher>& getWatchers() {
+            return mWatchers;
+        }
+
     private:
 
 
         Stopper mStopper;
         const COMPI::MPProblem<FT>& mProblem;
         Options mOptions;
+        std::vector<Watcher> mWatchers;
+
     };
 }
 
