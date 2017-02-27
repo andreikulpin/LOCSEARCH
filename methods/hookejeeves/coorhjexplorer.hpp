@@ -10,6 +10,7 @@
 
 #include <sstream>
 #include <mpproblem.hpp>
+#include <common/utilmacro.hpp>
 #include "hjexplorer.hpp"
 
 namespace LOCSEARCH {
