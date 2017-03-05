@@ -10,7 +10,7 @@
 
 #include <sstream>
 #include <functional>
-#include <common/locsearch.hpp>
+#include <solver.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -25,7 +25,7 @@ namespace LOCSEARCH {
     /**
      * Simple coordinate descent for box constrained problems
      */
-    template <typename FT> class CoorDesc : public LocalSearch <FT> {
+    template <typename FT> class CoorDesc : public COMPI::Solver <FT> {
     public:
 
         /**

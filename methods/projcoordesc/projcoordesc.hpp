@@ -13,7 +13,7 @@
 #define CONSCOORDESC_HPP
 #include <sstream>
 #include <functional>
-#include <common/locsearch.hpp>
+#include <solver.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -28,7 +28,7 @@ namespace LOCSEARCH {
     /**
      * Simple coordinate descen for constrained problems
      */
-    template <typename FT> class ProjCoorDesc : public LocalSearch <FT> {
+    template <typename FT> class ProjCoorDesc : public COMPI::Solver<FT> {
     public:
 
         /**

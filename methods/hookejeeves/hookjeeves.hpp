@@ -9,7 +9,7 @@
 #define  HOOKEJEEVES_HPP
 
 #include <sstream>
-#include <common/locsearch.hpp>
+#include <solver.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -26,7 +26,7 @@ namespace LOCSEARCH {
     /**
      * Modified Hooke-Jeeves Method
      */
-    template <typename FT> class MHookeJeeves : public LocalSearch <FT> {
+    template <typename FT> class MHookeJeeves : public COMPI::Solver<FT> {
     public:
 
         struct Options {

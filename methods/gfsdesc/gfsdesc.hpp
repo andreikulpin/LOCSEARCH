@@ -9,7 +9,7 @@
 #define  GFSDESC_HPP
 
 #include <sstream>
-#include <common/locsearch.hpp>
+#include <solver.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -24,7 +24,7 @@ namespace LOCSEARCH {
     /**
      * Modified gradient descent for gradient free box constrained optimization
      */
-    template <typename FT> class GFSDesc : public LocalSearch <FT> {
+    template <typename FT> class GFSDesc : public COMPI::Solver<FT> {
     public:
 
         /**

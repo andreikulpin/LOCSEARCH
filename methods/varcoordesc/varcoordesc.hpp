@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 #include <functional>
-#include <common/locsearch.hpp>
+#include <solver.hpp>
 #include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -27,7 +27,7 @@ namespace LOCSEARCH {
      * Coordinate descent for box constrained problems with unequal dynamically adjacent
      * steps along directions
      */
-    template <typename FT> class VarCoorDesc : public LocalSearch <FT> {
+    template <typename FT> class VarCoorDesc : public COMPI::Solver<FT> {
     public:
         
         /**
