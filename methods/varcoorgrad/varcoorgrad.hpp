@@ -74,11 +74,6 @@ namespace LOCSEARCH {
              */
             FT mHUB = 1e+02;
             /**
-             * Scales along coordinate directions, by default it is a vector of ones. Used if we need different scales 
-             * along different coordinates.
-             */
-            std::vector<FT> mScale;
-            /**
              * Gradient descent multiplier (if <= 0 then don't do gradient step)
              */
             FT mGradStep = -1;
@@ -101,7 +96,6 @@ namespace LOCSEARCH {
         VarCoorGrad(const COMPI::MPProblem<FT>& prob) :
         mProblem(prob) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            mOptions.mScale.assign(prob.mVarTypes.size(), 1);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
@@ -111,7 +105,7 @@ namespace LOCSEARCH {
          * @param v  the resulting value
          * @return true if search converged and false otherwise
          */
-        bool search(FT* x, FT& v) {
+        bool search(FT* x, FT& v) override {
             bool rv = false;
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
             snowgoose::BoxUtils::project(x, *(mProblem.mBox));
@@ -142,7 +136,7 @@ namespace LOCSEARCH {
             auto step = [&] () {
                 for (int i = 0; i < n;) {
                     const FT h = sft[i];
-                    const FT dh = h * mOptions.mScale[i];
+                    const FT dh = h;
                     FT y = x[i] + dir * dh;
                     y = SGMAX(y, box.mA[i]);
                     y = SGMIN(y, box.mB[i]);
@@ -182,8 +176,8 @@ namespace LOCSEARCH {
                 } else
                     rv = true;
                 if (mOptions.mGradStep > 0) {
-                    //FT l = mOptions.mGradStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    FT l = mOptions.mGradStep;
+                    FT l = mOptions.mGradStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    //FT l = mOptions.mGradStep;
                     for (int i = 0; i < mOptions.mGradMaxSteps; i++) {
                         snowgoose::VecUtils::vecSaxpy(n, x, grad, -l, xnew);
                         snowgoose::BoxUtils::project(xnew, box);
