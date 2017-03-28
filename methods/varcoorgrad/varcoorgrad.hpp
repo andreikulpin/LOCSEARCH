@@ -5,8 +5,8 @@
  * Created on November 3, 2015, 5:05 PM
  */
 
-#ifndef VARCOORDESC_HPP
-#define  VARCOORDESC_HPP
+#ifndef VARCOORGRAD_HPP
+#define  VARCOORGRAD_HPP
 
 #include <sstream>
 #include <vector>
@@ -25,28 +25,28 @@ namespace LOCSEARCH {
 
     /**
      * Coordinate descent for box constrained problems with unequal dynamically adjacent
-     * steps along directions
+     * steps along directions combined with gradient descent
      */
-    template <typename FT> class VarCoorDesc : public COMPI::Solver<FT> {
+    template <typename FT> class VarCoorGrad : public COMPI::Solver<FT> {
     public:
 
         /**
          * Determines stopping conditions
-         * @param xdiff - distance between next and previous x
-         * @param fdiff - difference between next and previous f value
-         * @param gran - current granularity vector
-         * @param n - current step number
+         * @param fval current best value found
+         * @param x current best point
+         * @param stpn step number
+         * @return true if the search should stop
          */
-        typedef std::function<bool(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Stopper;
+        using Stopper = std::function<bool(FT fval, const FT* x, int stpn) >;
 
         /**
          * Watches the current step
-         * @param xdiff - distance between next and previous x
-         * @param fdiff - difference between next and previous f value
+         * @param fval current best value found
+         * @param current best point
+         * @param stpn step number
          * @param gran - current granularity vector
-         * @param n - current step number
          */
-        typedef std::function<void(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Watcher;
+        using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, int stpn) >;
 
         /**
          * Options for Gradient Box Descent method
@@ -79,9 +79,17 @@ namespace LOCSEARCH {
              */
             std::vector<FT> mScale;
             /**
-             * Hooke-Jeeves multiplier (if <= 0 then don't do Hooke-Jeeves step)
+             * Gradient descent multiplier (if <= 0 then don't do gradient step)
              */
-            FT mHJ = -1;
+            FT mGradStep = -1;
+            /**
+             * Maximal number of consecutive gradient steps
+             */
+            FT mGradMaxSteps = 8;
+            /**
+             * Gradient search speedup parameter
+             */
+            FT mGradSpeedup = 1.2;
         };
 
         /**
@@ -90,9 +98,8 @@ namespace LOCSEARCH {
          * @param stopper - reference to the stopper
          * @param ls - pointer to the line search
          */
-        VarCoorDesc(const COMPI::MPProblem<FT>& prob, const Stopper& stopper) :
-        mProblem(prob),
-        mStopper(stopper) {
+        VarCoorGrad(const COMPI::MPProblem<FT>& prob) :
+        mProblem(prob) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
             mOptions.mScale.assign(prob.mVarTypes.size(), 1);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
@@ -115,6 +122,7 @@ namespace LOCSEARCH {
             sft.assign(n, mOptions.mHInit);
             FT* xold = new FT[n];
             FT* xnew = new FT[n];
+            FT* grad = new FT[n];
 
             auto inc = [this] (FT h) {
                 FT t = h * mOptions.mInc;
@@ -132,16 +140,17 @@ namespace LOCSEARCH {
 
 
             auto step = [&] () {
-                FT xd = 0;
                 for (int i = 0; i < n;) {
-                    FT h = sft[i];
-                    FT dh = h * mOptions.mScale[i];
+                    const FT h = sft[i];
+                    const FT dh = h * mOptions.mScale[i];
                     FT y = x[i] + dir * dh;
                     y = SGMAX(y, box.mA[i]);
                     y = SGMIN(y, box.mB[i]);
-                    FT tmp = x[i];
+                    const FT tmp = x[i];
                     x[i] = y;
-                    FT fn = obj->func(x);
+                    const FT fn = obj->func(x);
+                    const FT dx = y - tmp;
+                    grad[i] = (dx == 0) ? 0 : (fn - fcur) / dx;
                     if (fn >= fcur) {
                         x[i] = tmp;
                         if (dir == 1)
@@ -154,78 +163,71 @@ namespace LOCSEARCH {
                     } else {
                         sft[i] = inc(h);
                         fcur = fn;
-                        xd += dh * dh;
                         dir = 1;
                         i++;
                     }
                 }
-
-                return xd;
             };
 
             int sn = 0;
-            for (;;) {
+            bool br = false;
+            while (!br) {
                 sn++;
                 FT fold = fcur;
-                if (mOptions.mHJ > 0) {
-                    snowgoose::VecUtils::vecCopy(n, x, xold);
-                }
-                FT xdiff = step();
-                FT fdiff = fold - fcur;
-                if (fcur < fold) {
-                    rv = true;
-                    if (mOptions.mHJ > 0) {
-                        FT l = mOptions.mHJ * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                        while (true) {
-                            for (int i = 0; i < n; i++) {
-                                xnew[i] = x[i] + l * (x[i] - xold[i]);
-                            }
-                            snowgoose::BoxUtils::project(xnew, box);
-                            FT fn = obj->func(xnew);
-                            if (fn < fcur) {
-                                snowgoose::VecUtils::vecCopy(n, xnew, x);
-                                fcur = fn;
-                                std::cout << "S: " << fn << ", l = " << l <<"\n";
-                                l *= 1.2;
-                            } else {
-                                std::cout << "F: " << fn << ", l = " << l <<"\n";
-                                break;
-                                /*
-                                if (l < mOptions.mHLB)
-                                    break;
-                                else
-                                    l *= 0.5;
-                                 */ 
-                            }
-                        }
-                    }
-                } else {
+                step();
+                if (fcur == fold) {
                     FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
                     if (H <= mOptions.mHLB)
                         break;
-                }
-                for (auto w : mWatchers) {
-                    w(xdiff, fdiff, sft, fcur, sn);
-                }
-                if (mStopper(xdiff, fdiff, sft, fcur, sn)) {
-                    break;
+                } else
+                    rv = true;
+                if (mOptions.mGradStep > 0) {
+                    //FT l = mOptions.mGradStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    FT l = mOptions.mGradStep;
+                    for (int i = 0; i < mOptions.mGradMaxSteps; i++) {
+                        snowgoose::VecUtils::vecSaxpy(n, x, grad, -l, xnew);
+                        snowgoose::BoxUtils::project(xnew, box);
+                        FT fn = obj->func(xnew);
+                        if (fn < fcur) {
+                            snowgoose::VecUtils::vecCopy(n, xnew, x);
+                            fcur = fn;
+                            std::cout << "S: " << fn << ", l = " << l << "\n";
+                            l *= mOptions.mGradSpeedup;
+                        } else {
+                            std::cout << "F: " << fn << ", l = " << l << "\n";
+                            break;
+                        }
+                    }
                 }
 
+                for (auto w : mWatchers) {
+                    w(fcur, x, sft, sn);
+                }
+                for (auto s : mStoppers) {
+                    if (s(fcur, x, sn)) {
+                        br = true;
+                        break;
+                    }
+                }
             }
             v = fcur;
-            delete [] xold;
             delete [] xnew;
+            delete [] grad;
+            delete [] xold;
             return rv;
         }
 
         std::string about() const {
             std::ostringstream os;
-            os << "Coordinate descent method with variable adaptation\n";
+            os << "Coordinate descent method with variable adaptation combined with gradient descent\n";
             os << "Initial step = " << mOptions.mHInit << "\n";
             os << "Increment multiplier = " << mOptions.mInc << "\n";
             os << "Decrement multiplier = " << mOptions.mDec << "\n";
             os << "Upper bound on the step = " << mOptions.mHUB << "\n";
             os << "Lower bound on the step = " << mOptions.mHLB << "\n";
+            os << "Gradient step = " << mOptions.mGradStep << "\n";
+            os << "Gradient speedup = " << mOptions.mGradSpeedup << "\n";
+            os << "Gradient max steps = " << mOptions.mGradMaxSteps << "\n";
             return os.str();
         }
 
@@ -235,6 +237,10 @@ namespace LOCSEARCH {
          */
         Options & getOptions() {
             return mOptions;
+        }
+
+        std::vector<Stopper>& getStoppers() {
+            return mStoppers;
         }
 
         /**
@@ -247,22 +253,10 @@ namespace LOCSEARCH {
 
     private:
 
-        /*
-        void project(FT* x) {
-            int n = LocalOptimizer<FT>::getObjective()->getDim();
-            for (int i = 0; i < n; i++) {
-                if (x[i] < LocalBoxOptimizer<FT>::mBox.mA[i])
-                    x[i] = LocalBoxOptimizer<FT>::mBox.mA[i];
-                else if (x[i] > LocalBoxOptimizer<FT>::mBox.mB[i])
-                    x[i] = LocalBoxOptimizer<FT>::mBox.mB[i];
-            }
-        }
-         */
-
-        Stopper mStopper;
         const COMPI::MPProblem<FT>& mProblem;
         LineSearch<FT>* mLS;
         Options mOptions;
+        std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
 
     };
