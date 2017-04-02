@@ -32,21 +32,21 @@ namespace LOCSEARCH {
 
         /**
          * Determines stopping conditions
-         * @param xdiff - distance between next and previous x
-         * @param fdiff - difference between next and previous f value
-         * @param gran - current granularity vector
-         * @param n - current step number
+         * @param fval current best value found
+         * @param x current best point
+         * @param stpn step number
+         * @return true if the search should stop
          */
-        typedef std::function<bool(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Stopper;
+        using Stopper = std::function<bool(FT fval, const FT* x, int stpn) >;
 
         /**
          * Watches the current step
-         * @param xdiff - distance between next and previous x
-         * @param fdiff - difference between next and previous f value
+         * @param fval current best value found
+         * @param current best point
+         * @param stpn step number
          * @param gran - current granularity vector
-         * @param n - current step number
          */
-        typedef std::function<void(FT xdiff, FT fdiff, const std::vector<FT>& gran, FT fval, int n) > Watcher;
+        using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, int stpn) >;
 
         /**
          * Options for Gradient Box Descent method
@@ -74,11 +74,6 @@ namespace LOCSEARCH {
              */
             FT mHUB = 1e+02;
             /**
-             * Scales along coordinate directions, by default it is a vector of ones. Used if we need different scales 
-             * along different coordinates.
-             */
-            std::vector<FT> mScale;
-            /**
              * Hooke-Jeeves multiplier (if <= 0 then don't do Hooke-Jeeves step)
              */
             FT mHJ = -1;
@@ -87,14 +82,10 @@ namespace LOCSEARCH {
         /**
          * The constructor
          * @param prob - reference to the problem
-         * @param stopper - reference to the stopper
-         * @param ls - pointer to the line search
          */
-        VarCoorDesc(const COMPI::MPProblem<FT>& prob, const Stopper& stopper) :
-        mProblem(prob),
-        mStopper(stopper) {
+        VarCoorDesc(const COMPI::MPProblem<FT>& prob) :
+        mProblem(prob) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            mOptions.mScale.assign(prob.mVarTypes.size(), 1);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
@@ -128,14 +119,10 @@ namespace LOCSEARCH {
                 return t;
             };
 
-            int dir = 1;
-
-
             auto step = [&] () {
-                FT xd = 0;
+                int dir = 1;
                 for (int i = 0; i < n;) {
-                    FT h = sft[i];
-                    FT dh = h * mOptions.mScale[i];
+                    FT dh = sft[i];
                     FT y = x[i] + dir * dh;
                     y = SGMAX(y, box.mA[i]);
                     y = SGMIN(y, box.mB[i]);
@@ -147,31 +134,29 @@ namespace LOCSEARCH {
                         if (dir == 1)
                             dir = -1;
                         else {
-                            sft[i] = dec(h);
+                            sft[i] = dec(dh);
                             i++;
                             dir = 1;
                         }
                     } else {
-                        sft[i] = inc(h);
+                        sft[i] = inc(dh);
                         fcur = fn;
-                        xd += dh * dh;
                         dir = 1;
                         i++;
                     }
                 }
 
-                return xd;
             };
 
             int sn = 0;
-            for (;;) {
+            bool br = false;
+            while (!br) {
                 sn++;
                 FT fold = fcur;
                 if (mOptions.mHJ > 0) {
                     snowgoose::VecUtils::vecCopy(n, x, xold);
                 }
-                FT xdiff = step();
-                FT fdiff = fold - fcur;
+                step();
                 if (fcur < fold) {
                     rv = true;
                     if (mOptions.mHJ > 0) {
@@ -185,17 +170,17 @@ namespace LOCSEARCH {
                             if (fn < fcur) {
                                 snowgoose::VecUtils::vecCopy(n, xnew, x);
                                 fcur = fn;
-                                std::cout << "S: " << fn << ", l = " << l <<"\n";
+                                std::cout << "S: " << fn << ", l = " << l << "\n";
                                 l *= 1.2;
                             } else {
-                                std::cout << "F: " << fn << ", l = " << l <<"\n";
+                                std::cout << "F: " << fn << ", l = " << l << "\n";
                                 break;
                                 /*
                                 if (l < mOptions.mHLB)
                                     break;
                                 else
                                     l *= 0.5;
-                                 */ 
+                                 */
                             }
                         }
                     }
@@ -205,12 +190,14 @@ namespace LOCSEARCH {
                         break;
                 }
                 for (auto w : mWatchers) {
-                    w(xdiff, fdiff, sft, fcur, sn);
+                    w(fcur, x, sft, sn);
                 }
-                if (mStopper(xdiff, fdiff, sft, fcur, sn)) {
-                    break;
+                for (auto s : mStoppers) {
+                    if (s(fcur, x, sn)) {
+                        br = true;
+                        break;
+                    }
                 }
-
             }
             v = fcur;
             delete [] xold;
@@ -235,6 +222,14 @@ namespace LOCSEARCH {
          */
         Options & getOptions() {
             return mOptions;
+        }
+
+        /**
+         * Retrieve stoppers vector reference
+         * @return stoppers vector reference
+         */
+        std::vector<Stopper>& getStoppers() {
+            return mStoppers;
         }
 
         /**
@@ -264,6 +259,8 @@ namespace LOCSEARCH {
         LineSearch<FT>* mLS;
         Options mOptions;
         std::vector<Watcher> mWatchers;
+        std::vector<Stopper> mStoppers;
+
 
     };
 }

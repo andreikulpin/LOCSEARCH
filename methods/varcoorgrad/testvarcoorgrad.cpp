@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <box/boxutils.hpp>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
 #include <methods/lins/dichotls/dichotls.hpp>
@@ -32,9 +33,7 @@ int main(int argc, char** argv) {
     desc.getOptions().mGradStep = 1;
     desc.getOptions().mGradMaxSteps = 8;
     double x[n];
-
-    for (int i = 0; i < n; i++)
-        x[i] = i * 100 + 1;
+    snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
     bool rv = desc.search(x, v);
     std::cout << desc.about() << "\n";

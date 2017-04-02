@@ -8,20 +8,11 @@
 #include <iostream>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
+#include <box/boxutils.hpp>
 #include <methods/lins/dichotls/dichotls.hpp>
 #include <methods/lins/quadls/quadls.hpp>
 #include "varcoordesc.hpp"
 
-class CoorStopper {
-public:
-
-    bool operator()(double xdiff, double fdiff, const std::vector<double>& gran, double fval, int n) {
-        mCnt++;
-        return false;
-    }
-
-    int mCnt = 0;
-};
 
 /*
  * 
@@ -35,20 +26,20 @@ int main(int argc, char** argv) {
     mpp->mObjectives.push_back(obj);
 
 
-    CoorStopper stp;
-    LOCSEARCH::VarCoorDesc<double> desc(*mpp, stp);
-
+    LOCSEARCH::VarCoorDesc<double> desc(*mpp);
     desc.getOptions().mHInit = .1;
     desc.getOptions().mHJ = 0.2;
-
     double x[n];
-
-    for (int i = 0; i < n; i++)
-        x[i] = i * 100 + 1;
+    snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
+    int steps = 0;
+    auto wtch = [&steps](double fval, const double* x, const std::vector<double>& gran, int stpn) {
+        steps ++;
+    };
+    desc.getWatchers().push_back(wtch);
     bool rv = desc.search(x, v);
     std::cout << desc.about() << "\n";
-    std::cout << "In " << stp.mCnt << " iterations found v = " << v << "\n";
+    std::cout << "In " << steps << " iterations found v = " << v << "\n";
     std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
     std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     SG_ASSERT(v <= 0.01);

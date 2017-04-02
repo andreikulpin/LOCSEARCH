@@ -12,7 +12,6 @@
 #include <vector>
 #include <functional>
 #include <solver.hpp>
-#include <common/lineseach.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
 #include <box/boxutils.hpp>
@@ -233,6 +232,10 @@ namespace LOCSEARCH {
             return mOptions;
         }
 
+        /**
+         * Retrieve stoppers vector reference
+         * @return stoppers vector reference
+         */
         std::vector<Stopper>& getStoppers() {
             return mStoppers;
         }
@@ -248,7 +251,6 @@ namespace LOCSEARCH {
     private:
 
         const COMPI::MPProblem<FT>& mProblem;
-        LineSearch<FT>* mLS;
         Options mOptions;
         std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
