@@ -29,9 +29,9 @@ int main(int argc, char** argv) {
 
     LOCSEARCH::VarCoorGrad<double> desc(*mpp);
 
-    desc.getOptions().mHInit = .1;
-    desc.getOptions().mGradStep = 1;
-    desc.getOptions().mGradMaxSteps = 8;
+    desc.getOptions().mHInit = .5;
+    desc.getOptions().mGradSpeedup = 8;
+    desc.getOptions().mGradMaxSteps = 16;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
