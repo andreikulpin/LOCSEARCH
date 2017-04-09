@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 
     desc.getOptions().mHInit = .5;
     desc.getOptions().mGradSpeedup = 8;
-    desc.getOptions().mGradMaxSteps = 16;
+    desc.getOptions().mGoldenSearchDelta = 0.001;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;

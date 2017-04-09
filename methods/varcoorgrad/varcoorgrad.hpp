@@ -148,7 +148,12 @@ namespace LOCSEARCH {
                     x[i] = y;
                     const FT fn = obj->func(x);
                     const FT dx = y - tmp;
-                    grad[i] = (dx == 0) ? 0 : (fn - fcur) / dx;
+                    const FT ng = (dx == 0) ? 0 : (fn - fcur) / dx;
+                    if (dir == 1) {
+                        grad[i] = ng;
+                    } else {
+                        grad[i] = 0.5 * (grad[i] + ng);                        
+                    }
                     if (fn >= fcur) {
                         x[i] = tmp;
                         if (dir == 1)
@@ -169,81 +174,117 @@ namespace LOCSEARCH {
 
             int sn = 0;
             bool br = false;
+            const FT initStep = mOptions.mGradStep;
             while (!br) {
                 sn++;
                 FT fold = fcur;
                 step();
+                std::cout << "After step fcur = " << fcur << ", init step = " << initStep << "\n";
                 if (fcur == fold) {
                     FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
                     if (H <= mOptions.mHLB)
                         break;
+                    else
+                        continue;
                 } else
                     rv = true;
+
+
                 if (mOptions.mGradStep > 0) {
-                    snowgoose::VecUtils::vecCopy(n, x, xold);
-                    FT l = mOptions.mGradStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    //FT l = mOptions.mGradStep;
+                    FT lp = 0;
+                    FT lpp = 0;
+                    FT l = initStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    constexpr FT rho = 0.382;
+                    bool forward = true;
+                    bool goodDir = false;
                     for (int i = 0; i < mOptions.mGradMaxSteps; i++) {
+                        std::cout << " i = " << i << ", " << (forward ? "forward" : "back") << "\n";
                         snowgoose::VecUtils::vecSaxpy(n, x, grad, -l, xnew);
                         if (!snowgoose::BoxUtils::isIn(xnew, box)) {
                             std::cout << "OUT OF BOX\n";
                             break;
                         }
-                        snowgoose::BoxUtils::project(xnew, box);
                         FT fn = obj->func(xnew);
                         if (fn < fcur) {
-                            snowgoose::VecUtils::vecCopy(n, xnew, x);
+                            goodDir = true;
                             fcur = fn;
                             std::cout << "S: " << fn << ", l = " << l << "\n";
-                            l *= mOptions.mGradSpeedup;
+                            if (forward) {
+                                lpp = lp;
+                                lp = l;
+                                l = lp + (lp - lpp) * ((1 - rho) / rho);
+                                std::cout << "lpp = " << lpp << ", lp = " << lp << ", l = " << l << "\n";
+                            } else {
+                                break;
+                            }
                         } else {
                             std::cout << "F: " << fn << ", l = " << l << "\n";
-                            if (mOptions.mGoldenSearchDelta > 0) {
-                                std::cout << "Start golden search\n";
-                                constexpr FT rho = 0.382;
-                                FT a = 0;
-                                FT b = 1;
-                                FT L = a + rho * (b - a);
-                                FT R = a + (1 - rho) * (b - a);
-                                snowgoose::VecUtils::vecSaxpy(n, xnew, xold, -1., ndir);
-                                auto getv = [&](FT coe) {
-                                    snowgoose::VecUtils::vecSaxpy(n, xold, ndir, coe, xnew);
-                                    return obj->func(xnew);
-                                };
-                                FT fL = getv(L);
-                                FT fR = getv(R);
-                                std::cout << "Befor loop: fcur = " << fcur <<"fL = " << fL << ", fR = " << fR << "\n";
-                                while (b - a > mOptions.mGoldenSearchDelta) {
-                                    if (fL <= fR) {
-                                        b = R;
-                                        R = L;
-                                        fR = fL;
-                                        L = a + rho * (b - a);
-                                        fL = getv(L);
-                                    } else {
-                                        a = L;
-                                        L = R;
-                                        fL = fR;
-                                        R = a + (1 - rho) * (b - a);
-                                        fR = getv(R);
-                                    }
-                                    std::cout << "In loop: fL = " << fL << ", fR = " << fR << "\n";
-                                }
-                                if (fL <= fR) {
-                                    if (fL < fcur) {
-                                        snowgoose::VecUtils::vecSaxpy(n, xold, ndir, L, x);
-                                        fcur = fL;
-                                    }
-                                } else if(fR < fcur) {
-                                        snowgoose::VecUtils::vecSaxpy(n, xold, ndir, R, x);
-                                        fcur = fR;
-                                }
-
+                            if (i == 0) {
+                                forward = false;
+                                // TMP
+                                //break;
                             }
-                            break;
+                            if (forward) {
+                                break;
+                            } else {
+                                if (i >= 0) {
+                                    break;
+                                }
+                                lp = l;
+                                l *= rho;
+                                continue;
+                            }
+                        }
+                    }
+                    if (goodDir && (mOptions.mGoldenSearchDelta > 0)) {
+                        std::cout << "Start golden search\n";
+                        if (forward)
+                            snowgoose::VecUtils::vecSaxpy(n, x, grad, -lpp, x);
+                        else
+                            snowgoose::VecUtils::vecSaxpy(n, x, grad, -lp, xnew);
+                        snowgoose::VecUtils::vecSaxpy(n, xnew, x, -1., ndir);
+                        FT a = 0;
+                        FT b = 1;
+                        FT L = rho;
+                        FT R = 1 - rho;
+
+                        auto getv = [&](FT coe) {
+                            snowgoose::VecUtils::vecSaxpy(n, x, ndir, coe, xnew);
+                            return obj->func(xnew);
+                        };
+                        FT fL = fcur;
+                        FT fR = getv(R);
+                        std::cout << "Befor loop: fL = " << fL << ", fR = " << fR << "\n";
+                        while (b - a > mOptions.mGoldenSearchDelta) {
+                            if (fL <= fR) {
+                                b = R;
+                                R = L;
+                                fR = fL;
+                                L = a + rho * (b - a);
+                                fL = getv(L);
+                            } else {
+                                a = L;
+                                L = R;
+                                fL = fR;
+                                R = a + (1 - rho) * (b - a);
+                                fR = getv(R);
+                            }
+                            std::cout << "In loop: D = " << b - a << ", fL = " << fL << ", fR = " << fR << "\n";
+                        }
+                        if (fL <= fR) {
+                            if (fL < fcur) {
+                                snowgoose::VecUtils::vecSaxpy(n, x, ndir, L, x);
+                                fcur = fL;
+                            }
+                        } else if (fR < fcur) {
+                            snowgoose::VecUtils::vecSaxpy(n, x, ndir, R, x);
+                            fcur = fR;
                         }
                     }
                 }
+
+
+
 
                 for (auto w : mWatchers) {
                     w(fcur, x, sft, sn);
