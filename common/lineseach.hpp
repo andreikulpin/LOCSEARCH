@@ -18,10 +18,10 @@ namespace LOCSEARCH {
 
         /**
          * Search along a direction
-         * @param d direction
+         * @param d search direction (only the 'positive' direction is considered)
          * @param x starting point and the result
-         * @param v resulting value
-         * @return true if success
+         * @param v starting value (should be f(x)) and the resulting value
+         * @return true if success and false otherwise
          */
         virtual bool search(const FT* d, FT* x, FT& v) = 0;
 
