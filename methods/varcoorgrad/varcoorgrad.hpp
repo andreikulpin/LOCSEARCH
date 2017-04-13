@@ -11,6 +11,7 @@
 #include <sstream>
 #include <vector>
 #include <functional>
+#include <memory>
 #include <solver.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -18,6 +19,7 @@
 #include <common/sgerrcheck.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
+#include <common/lineseach.hpp>
 
 
 namespace LOCSEARCH {
@@ -102,6 +104,14 @@ namespace LOCSEARCH {
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
 
+        /**
+         * Retrieve the pointer to the line search
+         * @return 
+         */
+        std::shared_ptr<LineSearch<FT>>& getLineSearch() {
+            return mLS;
+        }
+        
         /**
          * Perform search
          * @param x start point and result
@@ -188,8 +198,14 @@ namespace LOCSEARCH {
                         continue;
                 } else
                     rv = true;
+                
+                if(mLS) {
+                    std::cout << "Start Line search\n";
+                    snowgoose::VecUtils::revert(n, grad);
+                    mLS.get()->search(grad, x, fcur);
+                }
 
-
+/*
                 if (mOptions.mGradStep > 0) {
                     FT lp = 0;
                     FT lpp = 0;
@@ -282,7 +298,7 @@ namespace LOCSEARCH {
                         }
                     }
                 }
-
+*/
 
 
 
@@ -348,6 +364,7 @@ namespace LOCSEARCH {
         Options mOptions;
         std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
+        std::shared_ptr<LineSearch<FT>> mLS;
 
     };
 }

@@ -29,8 +29,7 @@ namespace LOCSEARCH {
             /**
              * Initial step
              */
-            FT mSInit = 0.1;
-
+            FT mSInit = 0.01;
 
             /**
              * Max steps forward to estimate minimum

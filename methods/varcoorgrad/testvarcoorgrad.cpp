@@ -9,11 +9,8 @@
 #include <box/boxutils.hpp>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
-#include <methods/lins/dichotls/dichotls.hpp>
-#include <methods/lins/quadls/quadls.hpp>
+#include <methods/lins/goldsec/goldsec.hpp>
 #include "varcoorgrad.hpp"
-
-
 
 /*
  * 
@@ -26,8 +23,9 @@ int main(int argc, char** argv) {
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
 
-
+    //LOCSEARCH::GoldenSecLS<double> ls(*mpp);
     LOCSEARCH::VarCoorGrad<double> desc(*mpp);
+    desc.getLineSearch() = (std::make_shared<LOCSEARCH::GoldenSecLS<double>>(*mpp));
 
     desc.getOptions().mHInit = .5;
     desc.getOptions().mGradSpeedup = 8;
@@ -41,7 +39,7 @@ int main(int argc, char** argv) {
     std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
     std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     SG_ASSERT(v <= 0.01);
-    
+
     return 0;
 }
 
