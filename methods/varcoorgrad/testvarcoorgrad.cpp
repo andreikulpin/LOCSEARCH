@@ -21,15 +21,12 @@ int main(int argc, char** argv) {
     COMPI::MPProblem<double> *mpp = fact.getProblem();
     COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
-    mpp->mObjectives.push_back(obj);
-
-    //LOCSEARCH::GoldenSecLS<double> ls(*mpp);
+    mpp->mObjectives.push_back(obj);    
     LOCSEARCH::VarCoorGrad<double> desc(*mpp);
-    desc.getLineSearch() = (std::make_shared<LOCSEARCH::GoldenSecLS<double>>(*mpp));
+    desc.getLineSearch() = (std::make_unique<LOCSEARCH::GoldenSecLS<double>>(*mpp));
 
     desc.getOptions().mHInit = .5;
-    desc.getOptions().mGradSpeedup = 8;
-    desc.getOptions().mGoldenSearchDelta = 0.001;
+    desc.getOptions().mDoTracing = true;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;

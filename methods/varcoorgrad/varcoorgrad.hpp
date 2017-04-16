@@ -75,21 +75,14 @@ namespace LOCSEARCH {
              */
             FT mHUB = 1e+02;
             /**
-             * Gradient descent multiplier (if <= 0 then don't do gradient step)
+             * Lower bound on gradient
              */
-            FT mGradStep = 1;
+            FT mGradLB = 1e-08;
             /**
-             * Maximal number of consecutive gradient steps
+             * Trace on/off
              */
-            FT mGradMaxSteps = 8;
-            /**
-             * Gradient search speedup parameter
-             */
-            FT mGradSpeedup = 2;
-            /**
-             * Golden search delta (set <= 0 to cancel golden search)
-             */
-            FT mGoldenSearchDelta = 0.1;
+            bool mDoTracing = false;
+
         };
 
         /**
@@ -108,10 +101,10 @@ namespace LOCSEARCH {
          * Retrieve the pointer to the line search
          * @return 
          */
-        std::shared_ptr<LineSearch<FT>>& getLineSearch() {
+        std::unique_ptr<LineSearch<FT>>&getLineSearch() {
             return mLS;
         }
-        
+
         /**
          * Perform search
          * @param x start point and result
@@ -162,7 +155,7 @@ namespace LOCSEARCH {
                     if (dir == 1) {
                         grad[i] = ng;
                     } else {
-                        grad[i] = 0.5 * (grad[i] + ng);                        
+                        grad[i] = 0.5 * (grad[i] + ng);
                     }
                     if (fn >= fcur) {
                         x[i] = tmp;
@@ -184,123 +177,32 @@ namespace LOCSEARCH {
 
             int sn = 0;
             bool br = false;
-            const FT initStep = mOptions.mGradStep;
             while (!br) {
                 sn++;
                 FT fold = fcur;
                 step();
-                std::cout << "After step fcur = " << fcur << ", init step = " << initStep << "\n";
+                FT gnorm = snowgoose::VecUtils::vecNormTwo(n, grad);
+                if (mOptions.mDoTracing) {
+                    std::cout << "After step fcur = " << fcur << "\n";
+                    std::cout << "GNorm = " << gnorm << "\n";
+                }
+                if(gnorm <= mOptions.mGradLB) {
+                    break;
+                }
                 if (fcur == fold) {
                     FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
                     if (H <= mOptions.mHLB)
                         break;
-                    else
-                        continue;
-                } else
+                } else {
                     rv = true;
-                
-                if(mLS) {
-                    std::cout << "Start Line search\n";
+                }
+
+                if (mLS) {
+                    if (mOptions.mDoTracing)
+                        std::cout << "Start Line search\n";
                     snowgoose::VecUtils::revert(n, grad);
                     mLS.get()->search(grad, x, fcur);
                 }
-
-/*
-                if (mOptions.mGradStep > 0) {
-                    FT lp = 0;
-                    FT lpp = 0;
-                    FT l = initStep * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    constexpr FT rho = 0.382;
-                    bool forward = true;
-                    bool goodDir = false;
-                    for (int i = 0; i < mOptions.mGradMaxSteps; i++) {
-                        std::cout << " i = " << i << ", " << (forward ? "forward" : "back") << "\n";
-                        snowgoose::VecUtils::vecSaxpy(n, x, grad, -l, xnew);
-                        if (!snowgoose::BoxUtils::isIn(xnew, box)) {
-                            std::cout << "OUT OF BOX\n";
-                            break;
-                        }
-                        FT fn = obj->func(xnew);
-                        if (fn < fcur) {
-                            goodDir = true;
-                            fcur = fn;
-                            std::cout << "S: " << fn << ", l = " << l << "\n";
-                            if (forward) {
-                                lpp = lp;
-                                lp = l;
-                                l = lp + (lp - lpp) * ((1 - rho) / rho);
-                                std::cout << "lpp = " << lpp << ", lp = " << lp << ", l = " << l << "\n";
-                            } else {
-                                break;
-                            }
-                        } else {
-                            std::cout << "F: " << fn << ", l = " << l << "\n";
-                            if (i == 0) {
-                                forward = false;
-                                // TMP
-                                //break;
-                            }
-                            if (forward) {
-                                break;
-                            } else {
-                                if (i >= 0) {
-                                    break;
-                                }
-                                lp = l;
-                                l *= rho;
-                                continue;
-                            }
-                        }
-                    }
-                    if (goodDir && (mOptions.mGoldenSearchDelta > 0)) {
-                        std::cout << "Start golden search\n";
-                        if (forward)
-                            snowgoose::VecUtils::vecSaxpy(n, x, grad, -lpp, x);
-                        else
-                            snowgoose::VecUtils::vecSaxpy(n, x, grad, -lp, xnew);
-                        snowgoose::VecUtils::vecSaxpy(n, xnew, x, -1., ndir);
-                        FT a = 0;
-                        FT b = 1;
-                        FT L = rho;
-                        FT R = 1 - rho;
-
-                        auto getv = [&](FT coe) {
-                            snowgoose::VecUtils::vecSaxpy(n, x, ndir, coe, xnew);
-                            return obj->func(xnew);
-                        };
-                        FT fL = fcur;
-                        FT fR = getv(R);
-                        std::cout << "Befor loop: fL = " << fL << ", fR = " << fR << "\n";
-                        while (b - a > mOptions.mGoldenSearchDelta) {
-                            if (fL <= fR) {
-                                b = R;
-                                R = L;
-                                fR = fL;
-                                L = a + rho * (b - a);
-                                fL = getv(L);
-                            } else {
-                                a = L;
-                                L = R;
-                                fL = fR;
-                                R = a + (1 - rho) * (b - a);
-                                fR = getv(R);
-                            }
-                            std::cout << "In loop: D = " << b - a << ", fL = " << fL << ", fR = " << fR << "\n";
-                        }
-                        if (fL <= fR) {
-                            if (fL < fcur) {
-                                snowgoose::VecUtils::vecSaxpy(n, x, ndir, L, x);
-                                fcur = fL;
-                            }
-                        } else if (fR < fcur) {
-                            snowgoose::VecUtils::vecSaxpy(n, x, ndir, R, x);
-                            fcur = fR;
-                        }
-                    }
-                }
-*/
-
-
 
                 for (auto w : mWatchers) {
                     w(fcur, x, sft, sn);
@@ -326,11 +228,11 @@ namespace LOCSEARCH {
             os << "Initial step = " << mOptions.mHInit << "\n";
             os << "Increment multiplier = " << mOptions.mInc << "\n";
             os << "Decrement multiplier = " << mOptions.mDec << "\n";
-            os << "Upper bound on the step = " << mOptions.mHUB << "\n";
-            os << "Lower bound on the step = " << mOptions.mHLB << "\n";
-            os << "Gradient step = " << mOptions.mGradStep << "\n";
-            os << "Gradient speedup = " << mOptions.mGradSpeedup << "\n";
-            os << "Gradient max steps = " << mOptions.mGradMaxSteps << "\n";
+            os << "Upper bound on the vicinity size = " << mOptions.mHUB << "\n";
+            os << "Lower bound on the vicinity size = " << mOptions.mHLB << "\n";
+            if (mLS) {
+                os << "Line search is " << mLS.get()->about() << "\n";
+            }
             return os.str();
         }
 
@@ -364,7 +266,7 @@ namespace LOCSEARCH {
         Options mOptions;
         std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
-        std::shared_ptr<LineSearch<FT>> mLS;
+        std::unique_ptr<LineSearch<FT>> mLS;
 
     };
 }

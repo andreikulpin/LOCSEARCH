@@ -10,6 +10,7 @@
 
 #include <sstream>
 #include <vector>
+#include <memory>
 #include <functional>
 #include <solver.hpp>
 #include <common/lineseach.hpp>
@@ -77,6 +78,10 @@ namespace LOCSEARCH {
              * Hooke-Jeeves multiplier (if <= 0 then don't do Hooke-Jeeves step)
              */
             FT mHJ = -1;
+            /**
+             * Print tracing information or not
+             */
+            bool mDoTracing = false;
         };
 
         /**
@@ -106,6 +111,7 @@ namespace LOCSEARCH {
             sft.assign(n, mOptions.mHInit);
             FT* xold = new FT[n];
             FT* xnew = new FT[n];
+            FT* ndir = new FT[n];
 
             auto inc = [this] (FT h) {
                 FT t = h * mOptions.mInc;
@@ -153,41 +159,24 @@ namespace LOCSEARCH {
             while (!br) {
                 sn++;
                 FT fold = fcur;
-                if (mOptions.mHJ > 0) {
+                if (mLS) {
                     snowgoose::VecUtils::vecCopy(n, x, xold);
                 }
                 step();
+                if (mOptions.mDoTracing)
+                    std::cout << "After step: " << fcur << " = fcur, sft = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
                 if (fcur < fold) {
                     rv = true;
-                    if (mOptions.mHJ > 0) {
-                        FT l = mOptions.mHJ * snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                        while (true) {
-                            for (int i = 0; i < n; i++) {
-                                xnew[i] = x[i] + l * (x[i] - xold[i]);
-                            }
-                            snowgoose::BoxUtils::project(xnew, box);
-                            FT fn = obj->func(xnew);
-                            if (fn < fcur) {
-                                snowgoose::VecUtils::vecCopy(n, xnew, x);
-                                fcur = fn;
-                                std::cout << "S: " << fn << ", l = " << l << "\n";
-                                l *= 1.2;
-                            } else {
-                                std::cout << "F: " << fn << ", l = " << l << "\n";
-                                break;
-                                /*
-                                if (l < mOptions.mHLB)
-                                    break;
-                                else
-                                    l *= 0.5;
-                                 */
-                            }
-                        }
+                    if (mLS) {
+                        if (mOptions.mDoTracing)
+                            std::cout << "Start Line search\n";
+                        snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
+                        mLS.get()->search(ndir, x, fcur);
                     }
                 } else {
                     FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
                     if (H <= mOptions.mHLB)
-                        break;
+                        br = true;
                 }
                 for (auto w : mWatchers) {
                     w(fcur, x, sft, sn);
@@ -200,6 +189,7 @@ namespace LOCSEARCH {
                 }
             }
             v = fcur;
+            delete [] ndir;
             delete [] xold;
             delete [] xnew;
             return rv;
@@ -214,6 +204,14 @@ namespace LOCSEARCH {
             os << "Upper bound on the step = " << mOptions.mHUB << "\n";
             os << "Lower bound on the step = " << mOptions.mHLB << "\n";
             return os.str();
+        }
+
+        /**
+         * Retrieve the pointer to the line search
+         * @return 
+         */
+        std::unique_ptr<LineSearch<FT>>&getLineSearch() {
+            return mLS;
         }
 
         /**
@@ -256,10 +254,10 @@ namespace LOCSEARCH {
 
         Stopper mStopper;
         const COMPI::MPProblem<FT>& mProblem;
-        LineSearch<FT>* mLS;
         Options mOptions;
         std::vector<Watcher> mWatchers;
         std::vector<Stopper> mStoppers;
+        std::unique_ptr<LineSearch<FT>> mLS;
 
 
     };

@@ -29,13 +29,15 @@ namespace LOCSEARCH {
             /**
              * Initial step
              */
-            FT mSInit = 0.01;
-
+            FT mSInit = 0.1;
+            /**
+             * Updates SInit on each invocation
+             */
+            bool mUpdateSInit = false;
             /**
              * Max steps forward to estimate minimum
              */
-            FT mMaxForwardSteps = 8;
-
+            FT mMaxForwardSteps = 16;
             /**
              * Max steps to backtrack when estimating the interval
              */
@@ -44,6 +46,10 @@ namespace LOCSEARCH {
              * Delta when to stop search
              */
             FT mDelta = 0.1;
+            /**
+             * Trace on/off
+             */
+            bool mDoTracing = false;
 
         };
 
@@ -61,76 +67,95 @@ namespace LOCSEARCH {
         bool search(const FT* d, FT* x, FT& v) override {
             FT lp = 0;
             FT lpp = 0;
+            FT lcur = 0;
             FT l = mOptions.mSInit;
             FT fcur = v;
             constexpr FT rho = 0.382;
             bool forward = true;
             bool goodDir = false;
+            bool doGoldenSearch = false;
             bool rv = false;
             const int n = mProblem.mVarTypes.size();
             FT* xnew = mXnew.data();
             const snowgoose::Box<FT>& box = *(mProblem.mBox);
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
-            for (int i = 0; i < mOptions.mMaxForwardSteps; i++) {
-                std::cout << " i = " << i << ", " << (forward ? "forward" : "back") << "\n";
+            int i = 0;
+
+            for (;;) {
+                if (mOptions.mDoTracing)
+                    std::cout << " i = " << i << ", " << (forward ? "forward" : "back") << "\n";
                 snowgoose::VecUtils::vecSaxpy(n, x, d, l, xnew);
                 if (!snowgoose::BoxUtils::isIn(xnew, box)) {
-                    std::cout << "OUT OF BOX\n";
+                    if (mOptions.mDoTracing)
+                        std::cout << "OUT OF BOX\n";
                     break;
                 }
                 FT fn = obj->func(xnew);
                 if (fn < fcur) {
                     goodDir = true;
                     fcur = fn;
-                    std::cout << "S: " << fn << ", l = " << l << "\n";
+                    lcur = l;
+                    if (mOptions.mDoTracing)
+                        std::cout << "S: " << fn << ", l = " << l << "\n";
                     if (forward) {
+                        if (i > mOptions.mMaxForwardSteps)
+                            break;
                         lpp = lp;
                         lp = l;
                         l = lp + (lp - lpp) * ((1 - rho) / rho);
-                        std::cout << "lpp = " << lpp << ", lp = " << lp << ", l = " << l << "\n";
+                        if (mOptions.mDoTracing)
+                            std::cout << "lpp = " << lpp << ", lp = " << lp << ", l = " << l << "\n";
                     } else {
+                        doGoldenSearch = true;
                         break;
                     }
                 } else {
-                    std::cout << "F: " << fn << ", l = " << l << "\n";
-                    if (i == 0) {
+                    if (mOptions.mDoTracing)
+                        std::cout << "F: " << fn << ", l = " << l << "\n";
+                    if (i == 0)
                         forward = false;
-                        // TMP
-                        //break;
-                    }
+
                     if (forward) {
+                        doGoldenSearch = true;
                         break;
                     } else {
-                        if (i > mOptions.mMaxBackSteps) {
+                        if (i > mOptions.mMaxBackSteps)
                             break;
-                        }
                         lp = l;
                         l *= rho;
-                        continue;
                     }
                 }
+                i++;
             }
+            if (mOptions.mUpdateSInit) {
+                if (goodDir) {
+                    mOptions.mSInit = l;
+                } else {
+                    mOptions.mSInit *= 0.1;
+                }
+            }
+            if (doGoldenSearch && (mOptions.mDelta > 0)) {
+                if (mOptions.mDoTracing)
+                    std::cout << "Start golden search\n";
+                const FT beg = forward ? lpp : 0;
+                const FT stretch = forward ? (l - lpp) : lp;
 
-            if (goodDir && (mOptions.mDelta > 0)) {
-                std::cout << "Start golden search\n";
-                if (forward)
-                    snowgoose::VecUtils::vecSaxpy(n, x, d, lpp, x);
-                else
-                    snowgoose::VecUtils::vecSaxpy(n, x, d, lp, xnew);
-                FT *ndir = mDir.data();
-                snowgoose::VecUtils::vecSaxpy(n, xnew, x, -1., ndir);
                 FT a = 0;
                 FT b = 1;
                 FT L = rho;
                 FT R = 1 - rho;
 
                 auto getv = [&](FT coe) {
-                    snowgoose::VecUtils::vecSaxpy(n, x, ndir, coe, xnew);
+                    snowgoose::VecUtils::vecSaxpy(n, x, d, beg + stretch * coe, xnew);
                     return obj->func(xnew);
                 };
                 FT fL = fcur;
                 FT fR = getv(R);
-                std::cout << "Before loop: fL = " << fL << ", fR = " << fR << "\n";
+                if (mOptions.mDoTracing) {
+                    std::cout << "Before loop: fL = " << fL << ", fR = " << fR << "\n";
+                    std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
+
+                }
                 while (b - a > mOptions.mDelta) {
                     if (fL <= fR) {
                         b = R;
@@ -145,20 +170,26 @@ namespace LOCSEARCH {
                         R = a + (1 - rho) * (b - a);
                         fR = getv(R);
                     }
-                    std::cout << "In loop: D = " << b - a << ", fL = " << fL << ", fR = " << fR << "\n";
+                    if (mOptions.mDoTracing) {
+                        std::cout << "In loop: D = " << b - a << ", fL = " << fL << ", fR = " << fR << "\n";
+                        std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
+                    }
                 }
                 if (fL <= fR) {
                     if (fL < fcur) {
-                        snowgoose::VecUtils::vecSaxpy(n, x, ndir, L, x);
                         fcur = fL;
+                        lcur = beg + stretch * L;
                     }
-                } else if (fR < fcur) {
-                    snowgoose::VecUtils::vecSaxpy(n, x, ndir, R, x);
-                    fcur = fR;
+                } else {
+                    if (fR < fcur) {
+                        fcur = fR;
+                        lcur = beg + stretch * R;
+                    }
                 }
             }
 
             if (fcur < v) {
+                snowgoose::VecUtils::vecSaxpy(n, x, d, lcur, x);
                 v = fcur;
                 return true;
             } else
