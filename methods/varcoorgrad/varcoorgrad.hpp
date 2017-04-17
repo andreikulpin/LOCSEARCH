@@ -231,7 +231,7 @@ namespace LOCSEARCH {
             os << "Upper bound on the vicinity size = " << mOptions.mHUB << "\n";
             os << "Lower bound on the vicinity size = " << mOptions.mHLB << "\n";
             if (mLS) {
-                os << "Line search is " << mLS.get()->about() << "\n";
+                os << "Line search along anti pseudo-gradient direction is " << mLS.get()->about() << "\n";
             }
             return os.str();
         }

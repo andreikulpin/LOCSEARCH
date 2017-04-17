@@ -29,8 +29,10 @@ int main(int argc, char** argv) {
     desc.getOptions().mDoTracing = true;
     LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
     locs->getOptions().mDoTracing = true;
-    locs->getOptions().mSInit = 0.001;
-    locs->getOptions().mMaxBackSteps = 1;
+    locs->getOptions().mSInit = 1e-4;
+    locs->getOptions().mDelta = 1e-6;
+    locs->getOptions().mMaxForwardSteps = 512;
+    locs->getOptions().mMaxBackSteps = 8;
     desc.getLineSearch().reset(locs);
 
     double x[n];

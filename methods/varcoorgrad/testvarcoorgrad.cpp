@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     LOCSEARCH::VarCoorGrad<double> desc(*mpp);
     desc.getLineSearch() = (std::make_unique<LOCSEARCH::GoldenSecLS<double>>(*mpp));
 
-    desc.getOptions().mHInit = .5;
+    desc.getOptions().mHInit = .1;
     desc.getOptions().mDoTracing = true;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);

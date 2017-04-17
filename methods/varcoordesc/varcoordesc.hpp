@@ -169,7 +169,7 @@ namespace LOCSEARCH {
                     rv = true;
                     if (mLS) {
                         if (mOptions.mDoTracing)
-                            std::cout << "Start Line search\n";
+                            std::cout << "Start Line search along Hooke-Jeeves direction\n";
                         snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
                         mLS.get()->search(ndir, x, fcur);
                     }
@@ -197,12 +197,15 @@ namespace LOCSEARCH {
 
         std::string about() const {
             std::ostringstream os;
-            os << "Coordinate descent method with variable adaptation\n";
+            os << "Coordinate descent method with variable vicinity adaptation\n";
             os << "Initial step = " << mOptions.mHInit << "\n";
             os << "Increment multiplier = " << mOptions.mInc << "\n";
             os << "Decrement multiplier = " << mOptions.mDec << "\n";
             os << "Upper bound on the step = " << mOptions.mHUB << "\n";
             os << "Lower bound on the step = " << mOptions.mHLB << "\n";
+            if (mLS) {
+                os << "Line search along Hooke-Jeeves direction is " << mLS.get()->about() << "\n";
+            }
             return os.str();
         }
 
