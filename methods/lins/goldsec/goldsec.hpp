@@ -147,7 +147,7 @@ namespace LOCSEARCH {
                 FT fR = getv(R);
                 if (mOptions.mDoTracing) {
                     std::cout << "Before loop: fL = " << fL << ", fR = " << fR << "\n";
-                    std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
+                    //std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
 
                 }
                 while (b - a > mOptions.mDelta) {
@@ -166,7 +166,7 @@ namespace LOCSEARCH {
                     }
                     if (mOptions.mDoTracing) {
                         std::cout << "In loop: D = " << b - a << ", fL = " << fL << ", fR = " << fR << "\n";
-                        std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
+                        //std::cout << "Check  fL = " << getv(L) << ", fR = " << getv(R) << "\n";
                     }
                 }
                 if (fL <= fR) {
