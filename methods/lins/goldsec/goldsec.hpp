@@ -69,23 +69,49 @@ namespace LOCSEARCH {
             constexpr FT rho = 0.382;
             bool forward = true;
             bool goodDir = false;
-            bool doGoldenSearch = false;            
+            bool doGoldenSearch = false;
             const int n = mProblem.mVarTypes.size();
             FT* xnew = mXnew.data();
             const snowgoose::Box<FT>& box = *(mProblem.mBox);
             COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
             int i = 0;
+            snowgoose::VecUtils::vecCopy(n, d, mDir.data());
+            FT* dir = mDir.data();
 
             for (;;) {
-                if (mOptions.mDoTracing)
-                    std::cout << " i = " << i << ", " << (forward ? "forward" : "back") << "\n";
-                snowgoose::VecUtils::vecSaxpy(n, x, d, l, xnew);
+                if (mOptions.mDoTracing) {
+                    std::cout << " i = " << i << ", " << (forward ? "forward" : "back") 
+                            << ", l = " << l << ", fbest = " << fbest << "\n";
+                }
+                snowgoose::BoxUtils::projectDirection(dir, x, box);
+                snowgoose::VecUtils::vecSaxpy(n, x, dir, l, xnew);
+                FT fn;
                 if (!snowgoose::BoxUtils::isIn(xnew, box)) {
                     if (mOptions.mDoTracing)
                         std::cout << "OUT OF BOX\n";
-                    break;
+                    FT alpha = l;
+                    for (int j = 0; j < n; j++) {
+                        FT nalpha = alpha;
+                        if (dir[j] > 0) {
+                            nalpha = (box.mB[j] - x[j]) / dir[j];
+                        } else if (dir[j] < 0) {
+                            nalpha = (box.mA[j] - x[j]) / dir[j];
+                        }
+                        alpha = SGMIN(alpha, nalpha);
+                    }
+                    l = alpha;
+                    snowgoose::VecUtils::vecSaxpy(n, x, dir, l, xnew);
+                    fn = obj->func(xnew);
+                    if(mOptions.mDoTracing)
+                        std::cout << "alpha = " << alpha << ", fn = " << fn << "\n";
+                    if (fn <= fbest) {
+                        fbest = fn;
+                        lbest = l;
+                        break;
+                    }
+                } else {
+                    fn = obj->func(xnew);
                 }
-                FT fn = obj->func(xnew);
                 if (fn < fbest) {
                     goodDir = true;
                     fbest = fn;
@@ -129,18 +155,18 @@ namespace LOCSEARCH {
                 const FT beg = forward ? lpp : 0;
                 const FT stretch = forward ? (l - lpp) : lp;
 
-                auto remap = [&] (FT coe){
-                  return beg + stretch * coe;  
+                auto remap = [&] (FT coe) {
+                    return beg + stretch * coe;
                 };
-                
+
                 FT a = 0;
                 FT b = 1;
                 FT L = rho;
                 FT R = 1 - rho;
-                
+
 
                 auto getv = [&](FT coe) {
-                    snowgoose::VecUtils::vecSaxpy(n, x, d, remap(coe), xnew);
+                    snowgoose::VecUtils::vecSaxpy(n, x, dir, remap(coe), xnew);
                     return obj->func(xnew);
                 };
                 FT fL = fbest;
@@ -183,7 +209,7 @@ namespace LOCSEARCH {
             }
 
             if (fbest < v) {
-                snowgoose::VecUtils::vecSaxpy(n, x, d, lbest, x);
+                snowgoose::VecUtils::vecSaxpy(n, x, dir, lbest, x);
                 v = fbest;
                 return true;
             } else
