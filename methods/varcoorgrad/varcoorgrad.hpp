@@ -50,6 +50,24 @@ namespace LOCSEARCH {
         using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, int stpn) >;
 
         /**
+         * Search types
+         */
+        enum SearchTypes {
+            /**
+             * No search along descent direction if performed
+             */
+            NO_DESCENT,
+            /**
+             * Search along Hooke-Jeeves direction
+             */
+            HOOKE_JEEVES,
+            /**
+             * Search along anti-pseudo-grad
+             */
+            PSEUDO_GRAD
+        };
+
+        /**
          * Options for Gradient Box Descent method
          */
         struct Options {
@@ -57,7 +75,6 @@ namespace LOCSEARCH {
              * Initial value of granularity
              */
             FT mHInit = 0.01;
-
             /**
              * Increase in the case of success
              */
@@ -82,7 +99,10 @@ namespace LOCSEARCH {
              * Trace on/off
              */
             bool mDoTracing = false;
-
+            /**
+             * Searh type
+             */
+            SearchTypes searchType = SearchTypes::NO_DESCENT;
         };
 
         /**
@@ -121,7 +141,6 @@ namespace LOCSEARCH {
             std::vector<FT> sft;
             sft.assign(n, mOptions.mHInit);
             FT* xold = new FT[n];
-            FT* xnew = new FT[n];
             FT* grad = new FT[n];
             FT* ndir = new FT[n];
 
@@ -180,13 +199,16 @@ namespace LOCSEARCH {
             while (!br) {
                 sn++;
                 FT fold = fcur;
+                if (mOptions.searchType == SearchTypes::HOOKE_JEEVES)
+                    snowgoose::VecUtils::vecCopy(n, x, xold);
+
                 step();
                 FT gnorm = snowgoose::VecUtils::vecNormTwo(n, grad);
                 if (mOptions.mDoTracing) {
                     std::cout << "After step fcur = " << fcur << "\n";
                     std::cout << "GNorm = " << gnorm << "\n";
                 }
-                if(gnorm <= mOptions.mGradLB) {
+                if (gnorm <= mOptions.mGradLB) {
                     break;
                 }
                 if (fcur == fold) {
@@ -197,12 +219,20 @@ namespace LOCSEARCH {
                     rv = true;
                 }
 
-                if (mLS) {
+                if (mOptions.searchType == SearchTypes::PSEUDO_GRAD) {
+                    SG_ASSERT(mLS);
                     if (mOptions.mDoTracing)
-                        std::cout << "Start Line search\n";
+                        std::cout << "Start Line search along anti pseudo grad\n";
                     snowgoose::VecUtils::revert(n, grad);
                     mLS.get()->search(grad, x, fcur);
+                } else if (mOptions.searchType == SearchTypes::HOOKE_JEEVES) {
+                    SG_ASSERT(mLS);
+                    if (mOptions.mDoTracing)
+                        std::cout << "Start Line search along Hooke-Jeeves direction\n";
+                    snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
+                    mLS.get()->search(ndir, x, fcur);
                 }
+
 
                 for (auto w : mWatchers) {
                     w(fcur, x, sft, sn);
@@ -215,7 +245,6 @@ namespace LOCSEARCH {
                 }
             }
             v = fcur;
-            delete [] xnew;
             delete [] grad;
             delete [] xold;
             delete [] ndir;

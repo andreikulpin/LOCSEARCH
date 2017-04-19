@@ -83,7 +83,9 @@ namespace LOCSEARCH {
                     std::cout << " i = " << i << ", " << (forward ? "forward" : "back") 
                             << ", l = " << l << ", fbest = " << fbest << "\n";
                 }
-                snowgoose::BoxUtils::projectDirection(dir, x, box);
+                // TMP FIX!!!
+                //snowgoose::BoxUtils::projectDirection(dir, x, box);
+                
                 snowgoose::VecUtils::vecSaxpy(n, x, dir, l, xnew);
                 FT fn;
                 if (!snowgoose::BoxUtils::isIn(xnew, box)) {
