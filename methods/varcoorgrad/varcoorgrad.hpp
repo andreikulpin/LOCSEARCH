@@ -68,6 +68,24 @@ namespace LOCSEARCH {
         };
 
         /**
+         * Policy of vicinity adaptation
+         */
+        enum VicinityAdaptationPolicy {
+            /**
+             * No adaptation (vicinity is constant)
+             */
+            NO_ADAPTATION,
+            /**
+             * Vicinity is a box
+             */
+            UNIFORM_ADAPTATION,
+            /**
+             * Adaptation is along each direction
+             */
+            VARIABLE_ADAPTATION
+        };
+
+        /**
          * Options for Gradient Box Descent method
          */
         struct Options {
@@ -96,13 +114,17 @@ namespace LOCSEARCH {
              */
             FT mGradLB = 1e-08;
             /**
+             * Searh type
+             */
+            SearchTypes mSearchType = SearchTypes::PSEUDO_GRAD;
+            /**
+             * Adaptation type
+             */
+            VicinityAdaptationPolicy mVicinityAdaptation = VicinityAdaptationPolicy::VARIABLE_ADAPTATION;
+            /**
              * Trace on/off
              */
             bool mDoTracing = false;
-            /**
-             * Searh type
-             */
-            SearchTypes searchType = SearchTypes::NO_DESCENT;
         };
 
         /**
@@ -138,28 +160,32 @@ namespace LOCSEARCH {
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();
             const snowgoose::Box<double>& box = *(mProblem.mBox);
-            std::vector<FT> sft;
-            sft.assign(n, mOptions.mHInit);
+            std::vector<FT> sft(n, mOptions.mHInit);
+            FT H = mOptions.mHInit;
             FT* xold = new FT[n];
             FT* grad = new FT[n];
             FT* ndir = new FT[n];
 
             auto inc = [this] (FT h) {
-                FT t = h * mOptions.mInc;
-                t = SGMIN(t, mOptions.mHUB);
+                FT t = h;
+                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
+                    t = h * mOptions.mInc;
+                    t = SGMIN(t, mOptions.mHUB);
+                }
                 return t;
             };
 
             auto dec = [this](FT h) {
-                FT t = h * mOptions.mDec;
-                t = SGMAX(t, mOptions.mHLB);
+                FT t = h;
+                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
+                    t = h * mOptions.mDec;
+                    t = SGMAX(t, mOptions.mHLB);
+                }
                 return t;
             };
 
-            int dir = 1;
-
-
             auto step = [&] () {
+                int dir = 1;
                 for (int i = 0; i < n;) {
                     const FT h = sft[i];
                     const FT dh = h;
@@ -199,38 +225,52 @@ namespace LOCSEARCH {
             while (!br) {
                 sn++;
                 FT fold = fcur;
-                if (mOptions.searchType == SearchTypes::HOOKE_JEEVES)
+                if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES)
                     snowgoose::VecUtils::vecCopy(n, x, xold);
-
                 step();
+                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::UNIFORM_ADAPTATION) {
+                    if (fcur < fold) {
+                        H *= mOptions.mInc;
+                        H = SGMIN(H, mOptions.mHUB);
+                    } else {
+                        H *= mOptions.mDec;
+                    }
+                    sft.assign(n, H);
+                }
                 FT gnorm = snowgoose::VecUtils::vecNormTwo(n, grad);
                 if (mOptions.mDoTracing) {
-                    std::cout << "After step fcur = " << fcur << "\n";
+                    std::cout << "After step fcur = " << fcur << ", fold = " << fold << "\n";
                     std::cout << "GNorm = " << gnorm << "\n";
                 }
                 if (gnorm <= mOptions.mGradLB) {
                     break;
                 }
+                if (mOptions.mDoTracing) {
+                    std::cout << "Vicinity size = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
+                }
+
                 if (fcur == fold) {
-                    FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    if (H <= mOptions.mHLB)
+                    FT vs = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    if (vs <= mOptions.mHLB)
                         break;
                 } else {
                     rv = true;
                 }
 
-                if (mOptions.searchType == SearchTypes::PSEUDO_GRAD) {
+                if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
                     SG_ASSERT(mLS);
                     if (mOptions.mDoTracing)
                         std::cout << "Start Line search along anti pseudo grad\n";
                     snowgoose::VecUtils::revert(n, grad);
                     mLS.get()->search(grad, x, fcur);
-                } else if (mOptions.searchType == SearchTypes::HOOKE_JEEVES) {
-                    SG_ASSERT(mLS);
-                    if (mOptions.mDoTracing)
-                        std::cout << "Start Line search along Hooke-Jeeves direction\n";
-                    snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
-                    mLS.get()->search(ndir, x, fcur);
+                } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
+                    if (fcur < fold) {
+                        SG_ASSERT(mLS);
+                        if (mOptions.mDoTracing)
+                            std::cout << "Start Line search along Hooke-Jeeves direction\n";
+                        snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
+                        mLS.get()->search(ndir, x, fcur);
+                    }
                 }
 
 

@@ -27,8 +27,8 @@ int main(int argc, char** argv) {
 
     desc.getOptions().mHInit = .1;
     desc.getOptions().mDoTracing = true;
-    desc.getOptions().mGradLB = 1e-20;
-    desc.getOptions().searchType = LOCSEARCH::VarCoorGrad<double>::SearchTypes::HOOKE_JEEVES;
+    desc.getOptions().mSearchType = LOCSEARCH::VarCoorGrad<double>::SearchTypes::PSEUDO_GRAD;
+    desc.getOptions().mVicinityAdaptation = LOCSEARCH::VarCoorGrad<double>::VARIABLE_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;

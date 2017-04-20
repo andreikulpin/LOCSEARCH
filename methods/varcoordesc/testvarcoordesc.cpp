@@ -26,6 +26,7 @@ int main(int argc, char** argv) {
 
     LOCSEARCH::VarCoorDesc<double> desc(*mpp);
     desc.getOptions().mHInit = .1;
+    desc.getOptions().mHLB = .05;
     desc.getOptions().mDoTracing = true;
     LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
     desc.getLineSearch().reset(locs);

@@ -124,34 +124,73 @@ namespace LOCSEARCH {
                 t = SGMAX(t, mOptions.mHLB);
                 return t;
             };
+            /*
+                      auto step = [&] () {
+                          int dir = 1;
+                          for (int i = 0; i < n;) {
+                              FT dh = sft[i];
+                              FT y = x[i] + dir * dh;
+                              y = SGMAX(y, box.mA[i]);
+                              y = SGMIN(y, box.mB[i]);
+                              FT tmp = x[i];
+                              x[i] = y;
+                              FT fn = obj->func(x);
+                              if (fn >= fcur) {
+                                  x[i] = tmp;
+                                  if (dir == 1)
+                                      dir = -1;
+                                  else {
+                                      sft[i] = dec(dh);
+                                      i++;
+                                      dir = 1;
+                                  }
+                              } else {
+                                  sft[i] = inc(dh);
+                                  fcur = fn;
+                                  dir = 1;
+                                  i++;
+                              }
+                          }
 
+                      };
+
+             */
+
+            FT grad[100];
             auto step = [&] () {
                 int dir = 1;
                 for (int i = 0; i < n;) {
-                    FT dh = sft[i];
+                    const FT h = sft[i];
+                    const FT dh = h;
                     FT y = x[i] + dir * dh;
                     y = SGMAX(y, box.mA[i]);
                     y = SGMIN(y, box.mB[i]);
-                    FT tmp = x[i];
+                    const FT tmp = x[i];
                     x[i] = y;
-                    FT fn = obj->func(x);
+                    const FT fn = obj->func(x);
+                    const FT dx = y - tmp;
+                    const FT ng = (dx == 0) ? 0 : (fn - fcur) / dx;
+                    if (dir == 1) {
+                        grad[i] = ng;
+                    } else {
+                        grad[i] = 0.5 * (grad[i] + ng);
+                    }
                     if (fn >= fcur) {
                         x[i] = tmp;
                         if (dir == 1)
                             dir = -1;
                         else {
-                            sft[i] = dec(dh);
+                            sft[i] = dec(h);
                             i++;
                             dir = 1;
                         }
                     } else {
-                        sft[i] = inc(dh);
+                        sft[i] = inc(h);
                         fcur = fn;
                         dir = 1;
                         i++;
                     }
                 }
-
             };
 
             int sn = 0;
@@ -164,8 +203,16 @@ namespace LOCSEARCH {
                 }
                 step();
                 if (mOptions.mDoTracing)
-                    std::cout << "After step: " << fcur << " = fcur, sft = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
-                if (fcur < fold) {
+                    std::cout << "After step fcur = " << fcur << ", sft = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
+
+                if (fcur == fold) {
+                    if (mOptions.mDoTracing)
+                        std::cout << "No improve fcur = " << fcur << ", fold = " <<  fold << "\n";
+
+                    FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    if (H <= mOptions.mHLB)
+                        break;
+                } else {
                     rv = true;
                     if (mLS) {
                         if (mOptions.mDoTracing)
@@ -173,11 +220,8 @@ namespace LOCSEARCH {
                         snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
                         mLS.get()->search(ndir, x, fcur);
                     }
-                } else {
-                    FT H = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    if (H <= mOptions.mHLB)
-                        br = true;
                 }
+
                 for (auto w : mWatchers) {
                     w(fcur, x, sft, sn);
                 }
