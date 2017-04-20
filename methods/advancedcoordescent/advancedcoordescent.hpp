@@ -5,8 +5,8 @@
  * Created on November 3, 2015, 5:05 PM
  */
 
-#ifndef VARCOORGRAD_HPP
-#define  VARCOORGRAD_HPP
+#ifndef ADVANCEDCOORDDESCENT_HPP
+#define  ADVANCEDCOORDDESCENT_HPP
 
 #include <sstream>
 #include <vector>
@@ -25,10 +25,10 @@
 namespace LOCSEARCH {
 
     /**
-     * Coordinate descent for box constrained problems with unequal dynamically adjacent
-     * steps along directions combined with gradient descent
+     * Advanced coordinate descent for box constrained problems with unequal dynamically adjacent
+     * steps along directions combined with a descent along Hooke-Jeeves or anti-pseudo-gradient direction
      */
-    template <typename FT> class VarCoorGrad : public COMPI::Solver<FT> {
+    template <typename FT> class AdvancedCoordinateDescent : public COMPI::Solver<FT> {
     public:
 
         /**
@@ -133,7 +133,7 @@ namespace LOCSEARCH {
          * @param stopper - reference to the stopper
          * @param ls - pointer to the line search
          */
-        VarCoorGrad(const COMPI::MPProblem<FT>& prob) :
+        AdvancedCoordinateDescent(const COMPI::MPProblem<FT>& prob) :
         mProblem(prob) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
@@ -293,14 +293,26 @@ namespace LOCSEARCH {
 
         std::string about() const {
             std::ostringstream os;
-            os << "Coordinate descent method with variable adaptation combined with gradient descent\n";
+            os << "Advanced coordinate descent method with ";
+            if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::UNIFORM_ADAPTATION) {
+                os << "uniform vicinity adaptation\n";
+            } else if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
+                os << "variable vicinity adaptation\n";
+            } else {
+                os << "no vicinity adaptation\n";
+            }
             os << "Initial step = " << mOptions.mHInit << "\n";
             os << "Increment multiplier = " << mOptions.mInc << "\n";
             os << "Decrement multiplier = " << mOptions.mDec << "\n";
             os << "Upper bound on the vicinity size = " << mOptions.mHUB << "\n";
             os << "Lower bound on the vicinity size = " << mOptions.mHLB << "\n";
-            if (mLS) {
+            os << "Lower bound on the gradient norm = " << mOptions.mGradLB << "\n";
+            if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
+                SG_ASSERT(mLS);
                 os << "Line search along anti pseudo-gradient direction is " << mLS.get()->about() << "\n";
+            } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
+                SG_ASSERT(mLS);
+                os << "Line search along Hooke-Jeeves direction is " << mLS.get()->about() << "\n";
             }
             return os.str();
         }
@@ -340,5 +352,5 @@ namespace LOCSEARCH {
     };
 }
 
-#endif /* GFSDESC_HPP */
+#endif /* ADVANCEDCOORDDESCENT_HPP */
 

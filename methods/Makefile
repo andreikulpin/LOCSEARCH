@@ -5,5 +5,5 @@
 all dep clean indent tests::	
 	cd lins  && $(MAKE) $@ && cd .. 
 	cd projcoordesc && $(MAKE) $@ && cd .. 
-	cd varcoorgrad && $(MAKE) $@ && cd .. 
+	cd advancedcoordescent && $(MAKE) $@ && cd .. 
 
