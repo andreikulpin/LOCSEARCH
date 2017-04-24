@@ -10,6 +10,7 @@
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
+#include <methods/lins/wolfels/wolfels.hpp>
 #include "advancedcoordescent.hpp"
 
 /*
@@ -21,10 +22,17 @@ int main(int argc, char** argv) {
     COMPI::MPProblem<double> *mpp = fact.getProblem();
     COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
-    mpp->mObjectives.push_back(obj);    
+    mpp->mObjectives.push_back(obj);
     LOCSEARCH::AdvancedCoordinateDescent<double> desc(*mpp);
+#if 0    
     desc.getLineSearch() = (std::make_unique<LOCSEARCH::GoldenSecLS<double>>(*mpp));
-
+#endif
+#if  1  
+    LOCSEARCH::WolfeLS<double> *locs = new LOCSEARCH::WolfeLS<double>(*mpp);
+    locs->getOptions().mDoTracing = true;
+    desc.getLineSearch().reset(locs);
+#endif    
+    
     desc.getOptions().mHInit = .1;
     desc.getOptions().mDoTracing = true;
     desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;

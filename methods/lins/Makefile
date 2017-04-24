@@ -6,5 +6,6 @@ all dep clean indent tests::
 	cd dichotls && $(MAKE) $@ && cd .. 
 	cd quadls && $(MAKE) $@ && cd ..
 	cd goldsec && $(MAKE) $@ && cd ..
+	cd wolfels && $(MAKE) $@ && cd ..
 	
 
