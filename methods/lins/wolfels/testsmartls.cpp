@@ -8,7 +8,7 @@
 #include <iostream>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
-#include "wolfels.hpp"
+#include "smartls.hpp"
 
 
 
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     mpp->mObjectives.pop_back();    
     mpp->mObjectives.push_back(obj);
     
-    LOCSEARCH::WolfeLS<double> ls(*mpp);
+    LOCSEARCH::SmartLS<double> ls(*mpp);
     ls.getOptions().mDoTracing = true;
 
     double x[n], d[n];

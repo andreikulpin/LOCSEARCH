@@ -11,11 +11,12 @@
  * Created on April 21, 2017, 9:05 PM
  */
 
-#ifndef WOLFELS_HPP
-#define WOLFELS_HPP
+#ifndef SMARTLS_HPP
+#define SMARTLS_HPP
 
 #include <vector>
 #include <limits>
+#include <sstream>
 #include <common/lineseach.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
@@ -28,7 +29,7 @@ namespace LOCSEARCH {
     /**
      * Line search based on Wolfe's condition
      */
-    template <class FT> class WolfeLS : public LineSearch<FT> {
+    template <class FT> class SmartLS : public LineSearch<FT> {
     public:
 
         struct Options {
@@ -64,7 +65,7 @@ namespace LOCSEARCH {
          *
          * @param prob optimization problem
          */
-        WolfeLS(const COMPI::MPProblem<FT>& prob) :
+        SmartLS(const COMPI::MPProblem<FT>& prob) :
         mProblem(prob) {
             mXnew.resize(prob.mVarTypes.size());
             mDir.resize(prob.mVarTypes.size());
@@ -145,7 +146,14 @@ namespace LOCSEARCH {
         }
 
         std::string about() const {
-            return "Line search based on Wolfe's condition";
+            std::ostringstream os;
+            os << "Smart Line Search with \n";
+            
+            os << "Initial step = " << mOptions.mSInit << "\n";
+            os << "Increment multiplier = " << mOptions.mInc << "\n";
+            os << "Decrement multiplier = " << mOptions.mDec << "\n";
+            os << "Maximal back steps = " << mOptions.mMaxFailStepsBack << "\n";
+            return os.str();
         }
 
         /**
@@ -172,5 +180,5 @@ namespace LOCSEARCH {
 }
 
 
-#endif /* WOLFELS_HPP */
+#endif /* SMARTLS_HPP */
 
