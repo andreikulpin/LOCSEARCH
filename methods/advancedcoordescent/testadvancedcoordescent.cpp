@@ -12,7 +12,7 @@
 #include <oneobj/contboxconstr/ackley1.hpp>
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
-#include <methods/lins/wolfels/smartls.hpp>
+#include <methods/lins/smartls/smartls.hpp>
 #include "advancedcoordescent.hpp"
 
 /*
