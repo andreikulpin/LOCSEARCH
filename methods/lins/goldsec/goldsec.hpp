@@ -9,7 +9,7 @@
 #define GOLDENSEC_HPP
 
 #include <vector>
-
+#include <sstream>
 #include <common/lineseach.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
@@ -80,12 +80,12 @@ namespace LOCSEARCH {
 
             for (;;) {
                 if (mOptions.mDoTracing) {
-                    std::cout << " i = " << i << ", " << (forward ? "forward" : "back") 
+                    std::cout << " i = " << i << ", " << (forward ? "forward" : "back")
                             << ", l = " << l << ", fbest = " << fbest << "\n";
                 }
                 // TMP FIX!!!
                 //snowgoose::BoxUtils::projectDirection(dir, x, box);
-                
+
                 snowgoose::VecUtils::vecSaxpy(n, x, dir, l, xnew);
                 FT fn;
                 if (!snowgoose::BoxUtils::isIn(xnew, box)) {
@@ -104,7 +104,7 @@ namespace LOCSEARCH {
                     l = alpha;
                     snowgoose::VecUtils::vecSaxpy(n, x, dir, l, xnew);
                     fn = obj->func(xnew);
-                    if(mOptions.mDoTracing)
+                    if (mOptions.mDoTracing)
                         std::cout << "alpha = " << alpha << ", fn = " << fn << "\n";
                     if (fn <= fbest) {
                         fbest = fn;
@@ -219,7 +219,13 @@ namespace LOCSEARCH {
         }
 
         std::string about() const {
-            return "Golden section line search.";
+            std::ostringstream os;
+            os << "Golden Section Line Search with \n";
+            os << "Initial step = " << mOptions.mSInit << "\n";
+            os << "Maximal reduction steps to locate minimum = " << mOptions.mMaxBackSteps << "\n";
+            os << "Maximal increase steps to locate minimum = " << mOptions.mMaxForwardSteps << "\n";
+            os << "Minimal interval for minimum size = " << mOptions.mDelta << "\n";
+            return os.str();
         }
 
         /**

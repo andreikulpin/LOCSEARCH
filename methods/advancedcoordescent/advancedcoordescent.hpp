@@ -257,20 +257,28 @@ namespace LOCSEARCH {
                     rv = true;
                 }
 
-                if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
-                    SG_ASSERT(mLS);
-                    if (mOptions.mDoTracing)
-                        std::cout << "Start Line search along anti pseudo grad\n";
-                    snowgoose::VecUtils::revert(n, grad);
-                    mLS.get()->search(grad, x, fcur);
-                } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
-                    if (fcur < fold) {
+                if (mOptions.mSearchType != SearchTypes::NO_DESCENT) {
+                    if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
                         SG_ASSERT(mLS);
-                        if (mOptions.mDoTracing)
-                            std::cout << "Start Line search along Hooke-Jeeves direction\n";
-                        snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
-                        mLS.get()->search(ndir, x, fcur);
+                        snowgoose::VecUtils::vecMult(n, grad, -1., ndir);
+                        if (mOptions.mDoTracing) {
+                            std::cout << "Start Line search along anti pseudo grad\n";
+                        }
+                    } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
+                        if (fcur < fold) {
+                            SG_ASSERT(mLS);
+                            snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
+                            if (mOptions.mDoTracing) {
+                                std::cout << "Start Line search along Hooke-Jeeves direction\n";
+                            }
+                        }
                     }
+                    snowgoose::BoxUtils::projectDirection(ndir, x, box);
+                    if (mOptions.mDoTracing) {
+                        std::cout << "x = " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
+                        std::cout << "dir = " << snowgoose::VecUtils::vecPrint(n, ndir) << "\n";
+                    }
+                    mLS.get()->search(ndir, x, fcur);
                 }
 
 
