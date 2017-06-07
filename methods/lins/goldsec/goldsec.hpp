@@ -73,7 +73,7 @@ namespace LOCSEARCH {
             const int n = mProblem.mVarTypes.size();
             FT* xnew = mXnew.data();
             const snowgoose::Box<FT>& box = *(mProblem.mBox);
-            COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
+            auto obj = mProblem.mObjectives.at(0);
             int i = 0;
             snowgoose::VecUtils::vecCopy(n, d, mDir.data());
             FT* dir = mDir.data();

@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     //OPTITEST::Ackley1ProblemFactory fact(std::vector<std::pair<double,double>>(n, std::pair<double, double>(-4,8)));
     OPTITEST::RosenbrockProblemFactory fact(n, -4, 8);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
-    COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
+    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
     LOCSEARCH::AdvancedCoordinateDescent<double> desc(*mpp);

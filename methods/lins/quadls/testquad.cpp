@@ -8,16 +8,17 @@
 #include <iostream>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
+#include <memory>
 #include "quadls.hpp"
 
 class MyStopper : public LOCSEARCH::QuadLS<double>::Stopper {
 public:
 
-    bool stopnow(double s, int k, double vo, double vn){
+    bool stopnow(double s, int k, double vo, double vn) {
         mCnt++;
         if (s < 1e-3)
             return true;
-        else if(k > 16)
+        else if (k > 16)
             return true;
         else
             return false;
@@ -33,10 +34,11 @@ int main(int argc, char** argv) {
     const int n = 2;
     OPTITEST::DejongProblemFactory fact(n, -4, 4);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
-    COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
-    mpp->mObjectives.pop_back();    
+    auto fun = mpp->mObjectives.at(0);
+    auto obj = std::make_shared<COMPI::FuncCnt<double>>(fun);
+    mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
-    
+
     MyStopper stp;
     LOCSEARCH::QuadLS<double> ls(*mpp, stp);
 

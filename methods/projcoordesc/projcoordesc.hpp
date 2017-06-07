@@ -90,7 +90,7 @@ namespace LOCSEARCH {
         bool search(FT* x, FT& v) {
             bool rv = false;
 
-            COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
+            auto obj = mProblem.mObjectives.at(0);
             mProjector(x);
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();

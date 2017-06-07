@@ -67,7 +67,7 @@ namespace LOCSEARCH {
         bool search(const FT* d, FT* x, FT& v) {
             FT s = mOptions.mSInit;
             int n = mProblem.mVarTypes.size();
-            COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
+            auto obj = mProblem.mObjectives.at(0);
             FT xk[n];
             v = obj->func(x);
             FT vn = v;

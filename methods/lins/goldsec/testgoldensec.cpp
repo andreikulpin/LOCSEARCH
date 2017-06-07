@@ -8,6 +8,7 @@
 #include <iostream>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <funccnt.hpp>
+#include <memory>
 #include "goldsec.hpp"
 
 
@@ -19,7 +20,8 @@ int main(int argc, char** argv) {
     const int n = 2;
     OPTITEST::DejongProblemFactory fact(n, -4, 4);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
-    COMPI::FuncCnt<double> *obj = new COMPI::FuncCnt<double>(*mpp->mObjectives.at(0));
+    //auto fun = 
+    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();    
     mpp->mObjectives.push_back(obj);
     

@@ -155,7 +155,7 @@ namespace LOCSEARCH {
          */
         bool search(FT* x, FT& v) override {
             bool rv = false;
-            COMPI::Functor<FT>* obj = mProblem.mObjectives.at(0);
+            auto obj = mProblem.mObjectives.at(0);
             snowgoose::BoxUtils::project(x, *(mProblem.mBox));
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();
