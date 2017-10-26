@@ -23,8 +23,8 @@ PTHREADLD=-lpthread
 #OPENMPLD=-fopenmp
 
 #optimization options
-OPTIMOPT=-g
-#OPTIMOPT=-O
+# OPTIMOPT=-g
+OPTIMOPT=-O3
 
 #Poll option
 #POLLOPT=-D__USE_POLL__

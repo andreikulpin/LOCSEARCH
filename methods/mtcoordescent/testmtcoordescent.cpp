@@ -1,8 +1,14 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
 /* 
- * File:   tesgfsdesc.cpp
- * Author: medved
+ * File:   testmtcoordescent.cpp
+ * Author: mposypkin
  *
- * Created on February 22, 2016, 3:17 PM
+ * Created on October 26, 2017, 12:30 PM
  */
 
 #include <iostream>
@@ -13,27 +19,28 @@
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
 #include <methods/lins/smartls/smartls.hpp>
-#include "advancedcoordescent.hpp"
+#include "mtcoordescent.hpp"
 
 /*
  * 
  */
 int main(int argc, char** argv) {
-    const int n = 200;
+    const int n = 500;
     //OPTITEST::DejongProblemFactory fact(n, -4, 8);
     
     
     //OPTITEST::Ackley1ProblemFactory fact(std::vector<std::pair<double,double>>(n, std::pair<double, double>(-4,8)));
     OPTITEST::RosenbrockProblemFactory fact(n, -4, 8);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
-    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
+    /* auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
-    LOCSEARCH::AdvancedCoordinateDescent<double> desc(*mpp);
+     */ 
+    LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
 #if 1    
     LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
     locs->getOptions().mSInit = 0.1;
-    locs->getOptions().mDelta = 0.02;
+    locs->getOptions().mDelta = 0.02;    
     locs->getOptions().mMaxBackSteps = 16;
     locs->getOptions().mDoTracing = true;
 #endif
@@ -45,23 +52,26 @@ int main(int argc, char** argv) {
 #endif    
     desc.getLineSearch().reset(locs);    
     desc.getOptions().mHInit = .1;
-    desc.getOptions().mDoTracing = true;
+    desc.getOptions().mHLB = 1e-10;
+    desc.getOptions().mDoTracing = false;
 
-    //desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
-    //desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
-    desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::NO_DESCENT;
-    desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::VARIABLE_ADAPTATION;
-    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::UNIFORM_ADAPTATION;
+    //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
+    //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
+    desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::NO_DESCENT;
+    desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
+    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::UNIFORM_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
     bool rv = desc.search(x, v);
     std::cout << desc.about() << "\n";
-    std::cout << "Found v = " << v << "\n";
+    std::cout << "Found v = " << mpp->mObjectives.at(0)->func(x) << "\n";
     std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
-    std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
+    //std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     SG_ASSERT(v <= 0.01);
 
     return 0;
 }
+
+
 

@@ -1,17 +1,24 @@
-/* 
- * File:   bbboxdesc.hpp
- * Author: medved
- *
- * Created on November 3, 2015, 5:05 PM
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
  */
 
-#ifndef ADVANCEDCOORDDESCENT_HPP
-#define  ADVANCEDCOORDDESCENT_HPP
+/* 
+ * File:   mtcoordescent.hpp
+ * Author: mposypkin
+ *
+ * Created on October 26, 2017, 12:24 PM
+ */
+
+#ifndef MTCOORDESCENT_HPP
+#define MTCOORDESCENT_HPP
 
 #include <sstream>
 #include <vector>
 #include <functional>
 #include <memory>
+#include <omp.h>
 #include <solver.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
@@ -25,10 +32,10 @@
 namespace LOCSEARCH {
 
     /**
-     * Advanced coordinate descent for box constrained problems with unequal dynamically adjacent
+     * Multithreaded advanced coordinate descent for box constrained problems with unequal dynamically adjacent
      * steps along directions combined with a descent along Hooke-Jeeves or anti-pseudo-gradient direction
      */
-    template <typename FT> class AdvancedCoordinateDescent : public COMPI::Solver<FT> {
+    template <typename FT> class MTCoordinateDescent : public COMPI::Solver<FT> {
     public:
 
         /**
@@ -133,7 +140,7 @@ namespace LOCSEARCH {
          * @param stopper - reference to the stopper
          * @param ls - pointer to the line search
          */
-        AdvancedCoordinateDescent(const COMPI::MPProblem<FT>& prob) :
+        MTCoordinateDescent(const COMPI::MPProblem<FT>& prob) :
         mProblem(prob) {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
@@ -165,6 +172,8 @@ namespace LOCSEARCH {
             FT* xold = new FT[n];
             FT* grad = new FT[n];
             FT* ndir = new FT[n];
+            FT* xx = new FT[n * n];
+            FT* fx = new FT[n];
 
             auto inc = [this] (FT h) {
                 FT t = h;
@@ -186,36 +195,52 @@ namespace LOCSEARCH {
 
             auto step = [&] () {
                 int dir = 1;
-                for (int i = 0; i < n;) {
+#pragma omp parallel for
+                for (int i = 0; i < n; i ++) {
+                    const int off = i * n;
+                    FT* const myx = xx + off;
+                    memcpy(myx, x, n * sizeof (FT));
                     const FT h = sft[i];
-                    FT y = x[i] + dir * h;
-                    y = SGMAX(y, box.mA[i]);
-                    y = SGMIN(y, box.mB[i]);
-                    const FT tmp = x[i];
-                    x[i] = y;
-                    const FT fn = obj->func(x);
-                    const FT dx = y - tmp;
-                    const FT ng = (dx == 0) ? 0 : (fn - fcur) / dx;
-                    if (dir == 1) {
-                        grad[i] = ng;
+                    FT yf = x[i] + h;
+                    yf = SGMAX(yf, box.mA[i]);
+                    yf = SGMIN(yf, box.mB[i]);
+                    myx[i] = yf;
+                    const FT fnf = obj->func(myx);
+
+                    FT yb = x[i] - h;
+                    yb = SGMAX(yb, box.mA[i]);
+                    yb = SGMIN(yb, box.mB[i]);
+                    myx[i] = yb;
+                    const FT fnb = obj->func(myx);
+                    const FT dx = yf - yb;
+                    const FT df = fnf - fnb;
+                    if (dx > 0)
+                        grad[i] = df / dx;
+                    else
+                        grad[i] = 0;
+                    if (fnf < fnb) {
+                        myx[i] = yf;
+                        fx[i] = fnf;
                     } else {
-                        grad[i] = 0.5 * (grad[i] + ng);
+                        myx[i] = yb;
+                        fx[i] = fnb;
                     }
-                    if (fn >= fcur) {
-                        x[i] = tmp;
-                        if (dir == 1)
-                            dir = -1;
-                        else {
-                            sft[i] = dec(h);
-                            i++;
-                            dir = 1;
-                        }
-                    } else {
-                        sft[i] = inc(h);
-                        fcur = fn;
-                        dir = 1;
-                        i++;
+                }
+                FT bestf = fcur;
+                int besti = -1;
+                for (int i = 0; i < n; i++) {
+                    if (fx[i] < fcur)
+                        sft[i] = inc(sft[i]);
+                    else
+                        sft[i] = dec(sft[i]);
+                    if (fx[i] < bestf) {
+                        bestf = fx[i];
+                        besti = i;
                     }
+                }
+                if (besti >= 0) {
+                    memcpy(x, xx + besti * n, n * sizeof (FT));
+                    fcur = bestf;
                 }
             };
 
@@ -292,6 +317,8 @@ namespace LOCSEARCH {
                 }
             }
             v = fcur;
+            delete [] fx;
+            delete [] xx;
             delete [] grad;
             delete [] xold;
             delete [] ndir;
@@ -359,5 +386,6 @@ namespace LOCSEARCH {
     };
 }
 
-#endif /* ADVANCEDCOORDDESCENT_HPP */
+
+#endif /* MTCOORDESCENT_HPP */
 
