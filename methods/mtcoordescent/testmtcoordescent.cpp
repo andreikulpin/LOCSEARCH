@@ -50,14 +50,11 @@ int main(int argc, char** argv) {
     locs->getOptions().mDoTracing = true;
     locs->getOptions().mMaxFailStepsBack = 0;
 #endif    
-    desc.getLineSearch().reset(locs);    
     desc.getOptions().mHInit = .1;
     desc.getOptions().mHLB = 1e-10;
-    desc.getOptions().mDoTracing = false;
 
     //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
     //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
-    desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::NO_DESCENT;
     desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
     //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::UNIFORM_ADAPTATION;
     double x[n];

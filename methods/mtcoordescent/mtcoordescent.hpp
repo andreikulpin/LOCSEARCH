@@ -16,6 +16,7 @@
 
 #include <sstream>
 #include <vector>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <omp.h>
@@ -33,7 +34,7 @@ namespace LOCSEARCH {
 
     /**
      * Multithreaded advanced coordinate descent for box constrained problems with unequal dynamically adjacent
-     * steps along directions combined with a descent along Hooke-Jeeves or anti-pseudo-gradient direction
+     * steps along directions combined 
      */
     template <typename FT> class MTCoordinateDescent : public COMPI::Solver<FT> {
     public:
@@ -57,24 +58,6 @@ namespace LOCSEARCH {
         using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, int stpn) >;
 
         /**
-         * Search types
-         */
-        enum SearchTypes {
-            /**
-             * No search along descent direction if performed
-             */
-            NO_DESCENT,
-            /**
-             * Search along Hooke-Jeeves direction
-             */
-            HOOKE_JEEVES,
-            /**
-             * Search along anti-pseudo-grad
-             */
-            PSEUDO_GRAD
-        };
-
-        /**
          * Policy of vicinity adaptation
          */
         enum VicinityAdaptationPolicy {
@@ -83,13 +66,17 @@ namespace LOCSEARCH {
              */
             NO_ADAPTATION,
             /**
-             * Vicinity is a box
+             * Adapting a whole vicinity is a box
              */
             UNIFORM_ADAPTATION,
             /**
-             * Adaptation is along each direction
+             * Adaptation is along each axis
              */
-            VARIABLE_ADAPTATION
+            VARIABLE_ADAPTATION,
+            /**
+             * Assymetric adaptation (adaptation along each direction of search - two for each axis)
+             */
+            ASSYMETRIC_ADAPTATION
         };
 
         /**
@@ -121,17 +108,9 @@ namespace LOCSEARCH {
              */
             FT mGradLB = 1e-08;
             /**
-             * Searh type
-             */
-            SearchTypes mSearchType = SearchTypes::PSEUDO_GRAD;
-            /**
              * Adaptation type
              */
-            VicinityAdaptationPolicy mVicinityAdaptation = VicinityAdaptationPolicy::VARIABLE_ADAPTATION;
-            /**
-             * Trace on/off
-             */
-            bool mDoTracing = false;
+            VicinityAdaptationPolicy mVicinityAdaptation = VicinityAdaptationPolicy::ASSYMETRIC_ADAPTATION;
         };
 
         /**
@@ -147,14 +126,6 @@ namespace LOCSEARCH {
         }
 
         /**
-         * Retrieve the pointer to the line search
-         * @return 
-         */
-        std::unique_ptr<LineSearch<FT>>&getLineSearch() {
-            return mLS;
-        }
-
-        /**
          * Perform search
          * @param x start point and result
          * @param v  the resulting value
@@ -165,163 +136,56 @@ namespace LOCSEARCH {
             auto obj = mProblem.mObjectives.at(0);
             snowgoose::BoxUtils::project(x, *(mProblem.mBox));
             FT fcur = obj->func(x);
-            int n = mProblem.mVarTypes.size();
+            const int n = mProblem.mVarTypes.size();
+            const int n2 = 2 * n;
             const snowgoose::Box<double>& box = *(mProblem.mBox);
-            std::vector<FT> sft(n, mOptions.mHInit);
-            FT H = mOptions.mHInit;
-            FT* xold = new FT[n];
-            FT* grad = new FT[n];
-            FT* ndir = new FT[n];
-            FT* xx = new FT[n * n];
-            FT* fx = new FT[n];
-
-            auto inc = [this] (FT h) {
-                FT t = h;
-                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
-                    t = h * mOptions.mInc;
-                    t = SGMIN(t, mOptions.mHUB);
-                }
-                return t;
+            std::vector<FT> sft(n2, mOptions.mHInit);
+            std::vector<FT> xold(x, x + n);
+            std::vector<FT> grad(n);
+            auto inc = [this] (FT& s) {
+                s = std::min(s * mOptions.mInc, mOptions.mHUB);
             };
-
-            auto dec = [this](FT h) {
-                FT t = h;
-                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
-                    t = h * mOptions.mDec;
-                    t = SGMAX(t, mOptions.mHLB);
-                }
-                return t;
+            auto dec = [this] (FT& s) {
+                s = std::max(s * mOptions.mDec, mOptions.mHLB);
             };
-
-            auto step = [&] () {
-                int dir = 1;
+            while (true) {
+                std::vector< std::vector<FT> > xx(n2, xold);
+                std::vector<FT> fv(n2);
 #pragma omp parallel for
-                for (int i = 0; i < n; i ++) {
-                    const int off = i * n;
-                    FT* const myx = xx + off;
-                    memcpy(myx, x, n * sizeof (FT));
-                    const FT h = sft[i];
-                    FT yf = x[i] + h;
-                    yf = SGMAX(yf, box.mA[i]);
-                    yf = SGMIN(yf, box.mB[i]);
-                    myx[i] = yf;
-                    const FT fnf = obj->func(myx);
-
-                    FT yb = x[i] - h;
-                    yb = SGMAX(yb, box.mA[i]);
-                    yb = SGMIN(yb, box.mB[i]);
-                    myx[i] = yb;
-                    const FT fnb = obj->func(myx);
-                    const FT dx = yf - yb;
-                    const FT df = fnf - fnb;
-                    if (dx > 0)
-                        grad[i] = df / dx;
-                    else
-                        grad[i] = 0;
-                    if (fnf < fnb) {
-                        myx[i] = yf;
-                        fx[i] = fnf;
+                for (int i = 0; i < n2; i++) {
+                    const int I = i / 2;
+                    FT xi;
+                    if (i % 2) {
+                        xi = std::min(xold[I] + sft[i], box.mB[I]);
                     } else {
-                        myx[i] = yb;
-                        fx[i] = fnb;
+                        xi = std::max(xold[I] - sft[i], box.mA[I]);
                     }
+                    xx[i][I] = xi;
                 }
-                FT bestf = fcur;
-                int besti = -1;
-                for (int i = 0; i < n; i++) {
-                    if (fx[i] < fcur)
-                        sft[i] = inc(sft[i]);
-                    else
-                        sft[i] = dec(sft[i]);
-                    if (fx[i] < bestf) {
-                        bestf = fx[i];
-                        besti = i;
-                    }
+#pragma omp parallel for
+                for (int i = 0; i < n2; i++) {
+                    fv[i] = obj->func(xx[i].data());                    
                 }
-                if (besti >= 0) {
-                    memcpy(x, xx + besti * n, n * sizeof (FT));
-                    fcur = bestf;
-                }
-            };
-
-            int sn = 0;
-            bool br = false;
-            while (!br) {
-                sn++;
-                FT fold = fcur;
-                if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES)
-                    snowgoose::VecUtils::vecCopy(n, x, xold);
-                step();
-                if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::UNIFORM_ADAPTATION) {
-                    if (fcur < fold) {
-                        H *= mOptions.mInc;
-                        H = SGMIN(H, mOptions.mHUB);
+                for (int i = 0; i < n2; i++) {
+                    if(fv[i] < fcur) {
+                        inc(sft[i]);
                     } else {
-                        H *= mOptions.mDec;
-                    }
-                    sft.assign(n, H);
+                        dec(sft[i]);
+                    }                    
                 }
-                FT gnorm = snowgoose::VecUtils::vecNormTwo(n, grad);
-                if (mOptions.mDoTracing) {
-                    std::cout << "After step fcur = " << fcur << ", fold = " << fold << "\n";
-                    std::cout << "GNorm = " << gnorm << "\n";
-                }
-                if (gnorm <= mOptions.mGradLB) {
+                auto it = std::min_element(fv.begin(), fv.end());
+                const FT fvn = *it;
+                if(fvn < fcur) {
+                    fcur = fvn;
+                    const int I = std::distance(fv.begin(), it);
+                    xold = xx[I];
+                }                
+                auto itmax = std::max_element(sft.begin(), sft.end());
+                if(*itmax <= mOptions.mHLB)
                     break;
-                }
-                if (mOptions.mDoTracing) {
-                    std::cout << "Vicinity size = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
-                }
-
-                if (fcur == fold) {
-                    FT vs = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
-                    if (vs <= mOptions.mHLB)
-                        break;
-                } else {
-                    rv = true;
-                }
-
-                if (mOptions.mSearchType != SearchTypes::NO_DESCENT) {
-                    if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
-                        SG_ASSERT(mLS);
-                        snowgoose::VecUtils::vecMult(n, grad, -1., ndir);
-                        if (mOptions.mDoTracing) {
-                            std::cout << "Start Line search along anti pseudo grad\n";
-                        }
-                    } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
-                        if (fcur < fold) {
-                            SG_ASSERT(mLS);
-                            snowgoose::VecUtils::vecSaxpy(n, x, xold, -1., ndir);
-                            if (mOptions.mDoTracing) {
-                                std::cout << "Start Line search along Hooke-Jeeves direction\n";
-                            }
-                        }
-                    }
-                    snowgoose::BoxUtils::projectDirection(ndir, x, box);
-                    if (mOptions.mDoTracing) {
-                        std::cout << "x = " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
-                        std::cout << "dir = " << snowgoose::VecUtils::vecPrint(n, ndir) << "\n";
-                    }
-                    mLS.get()->search(ndir, x, fcur);
-                }
-
-
-                for (auto w : mWatchers) {
-                    w(fcur, x, sft, sn);
-                }
-                for (auto s : mStoppers) {
-                    if (s(fcur, x, sn)) {
-                        br = true;
-                        break;
-                    }
-                }
             }
+            std::copy(xold.begin(), xold.end(), x);
             v = fcur;
-            delete [] fx;
-            delete [] xx;
-            delete [] grad;
-            delete [] xold;
-            delete [] ndir;
             return rv;
         }
 
@@ -341,13 +205,6 @@ namespace LOCSEARCH {
             os << "Upper bound on the vicinity size = " << mOptions.mHUB << "\n";
             os << "Lower bound on the vicinity size = " << mOptions.mHLB << "\n";
             os << "Lower bound on the gradient norm = " << mOptions.mGradLB << "\n";
-            if (mOptions.mSearchType == SearchTypes::PSEUDO_GRAD) {
-                SG_ASSERT(mLS);
-                os << "Line search along anti pseudo-gradient direction is " << mLS.get()->about() << "\n";
-            } else if (mOptions.mSearchType == SearchTypes::HOOKE_JEEVES) {
-                SG_ASSERT(mLS);
-                os << "Line search along Hooke-Jeeves direction is " << mLS.get()->about() << "\n";
-            }
             return os.str();
         }
 
