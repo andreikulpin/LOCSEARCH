@@ -142,17 +142,18 @@ namespace LOCSEARCH {
             std::vector<FT> sft(n2, mOptions.mHInit);
             std::vector<FT> xold(x, x + n);
             std::vector<FT> grad(n);
-            auto inc = [this] (FT& s) {
+            std::vector< std::vector<FT> > xx(n2, xold);
+            std::vector<FT> fv(n2);
+            auto inc = [this] (FT & s) {
                 s = std::min(s * mOptions.mInc, mOptions.mHUB);
             };
-            auto dec = [this] (FT& s) {
+            auto dec = [this] (FT & s) {
                 s = std::max(s * mOptions.mDec, mOptions.mHLB);
             };
             while (true) {
-                std::vector< std::vector<FT> > xx(n2, xold);
-                std::vector<FT> fv(n2);
 #pragma omp parallel for
                 for (int i = 0; i < n2; i++) {
+                    xx[i] = xold;
                     const int I = i / 2;
                     FT xi;
                     if (i % 2) {
@@ -161,27 +162,24 @@ namespace LOCSEARCH {
                         xi = std::max(xold[I] - sft[i], box.mA[I]);
                     }
                     xx[i][I] = xi;
-                }
-#pragma omp parallel for
-                for (int i = 0; i < n2; i++) {
-                    fv[i] = obj->func(xx[i].data());                    
+                    fv[i] = obj->func(xx[i].data());
                 }
                 for (int i = 0; i < n2; i++) {
-                    if(fv[i] < fcur) {
+                    if (fv[i] < fcur) {
                         inc(sft[i]);
                     } else {
                         dec(sft[i]);
-                    }                    
+                    }
                 }
                 auto it = std::min_element(fv.begin(), fv.end());
                 const FT fvn = *it;
-                if(fvn < fcur) {
+                if (fvn < fcur) {
                     fcur = fvn;
                     const int I = std::distance(fv.begin(), it);
                     xold = xx[I];
-                }                
+                }
                 auto itmax = std::max_element(sft.begin(), sft.end());
-                if(*itmax <= mOptions.mHLB)
+                if (*itmax <= mOptions.mHLB)
                     break;
             }
             std::copy(xold.begin(), xold.end(), x);
