@@ -84,6 +84,10 @@ namespace LOCSEARCH {
          */
         struct Options {
             /**
+             * Run in parallel mode or not
+             */
+            bool mParallelMode = true;
+            /**
              * Initial value of granularity
              */
             FT mHInit = 0.01;
@@ -151,18 +155,23 @@ namespace LOCSEARCH {
                 s = std::max(s * mOptions.mDec, mOptions.mHLB);
             };
             while (true) {
-#pragma omp parallel for
+
+#pragma omp parallel for if(mOptions.mParallelMode)
                 for (int i = 0; i < n2; i++) {
                     xx[i] = xold;
                     const int I = i / 2;
                     FT xi;
-                    if (i % 2) {
-                        xi = std::min(xold[I] + sft[i], box.mB[I]);
-                    } else {
-                        xi = std::max(xold[I] - sft[i], box.mA[I]);
-                    }
+                    xi = xold[I] + (2 * (i % 2) - 1) * sft[i];
+                    xi = std::min(xi, box.mB[I]);
+                    xi = std::max(xi, box.mA[I]);
                     xx[i][I] = xi;
                     fv[i] = obj->func(xx[i].data());
+                }
+                // end parallel loop
+
+                for (int i = 0; i < n; i++) {
+                    const int j = 2 * i;
+                    grad[i] = (fv[j + 1] - fv[j]) / (sft[j] + sft[j + 1]);
                 }
                 for (int i = 0; i < n2; i++) {
                     if (fv[i] < fcur) {
@@ -180,6 +189,12 @@ namespace LOCSEARCH {
                 }
                 auto itmax = std::max_element(sft.begin(), sft.end());
                 if (*itmax <= mOptions.mHLB)
+                    break;
+                FT gnorm = 0;
+                std::for_each(grad.begin(), grad.end(), [&gnorm](FT & el) {
+                    gnorm += el * el;
+                });
+                if (gnorm * gnorm < mOptions.mGradLB)
                     break;
             }
             std::copy(xold.begin(), xold.end(), x);
@@ -215,14 +230,6 @@ namespace LOCSEARCH {
         }
 
         /**
-         * Retrieve stoppers vector reference
-         * @return stoppers vector reference
-         */
-        std::vector<Stopper>& getStoppers() {
-            return mStoppers;
-        }
-
-        /**
          * Get watchers' vector
          * @return watchers vector
          */
@@ -234,7 +241,6 @@ namespace LOCSEARCH {
 
         const COMPI::MPProblem<FT>& mProblem;
         Options mOptions;
-        std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
         std::unique_ptr<LineSearch<FT>> mLS;
 

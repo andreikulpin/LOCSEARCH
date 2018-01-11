@@ -32,10 +32,10 @@ int main(int argc, char** argv) {
     //OPTITEST::Ackley1ProblemFactory fact(std::vector<std::pair<double,double>>(n, std::pair<double, double>(-4,8)));
     OPTITEST::RosenbrockProblemFactory fact(n, -4, 8);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
-    /* auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
+    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
-     */ 
+     
     LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
 #if 1    
     LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
 #endif    
     desc.getOptions().mHInit = .1;
     desc.getOptions().mHLB = 1e-10;
+    //desc.getOptions().mParallelMode = false;
 
     //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
     //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
@@ -64,8 +65,8 @@ int main(int argc, char** argv) {
     std::cout << desc.about() << "\n";
     std::cout << "Found v = " << mpp->mObjectives.at(0)->func(x) << "\n";
     std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
-    //std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
-    SG_ASSERT(v <= 0.01);
+    std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
+    //SG_ASSERT(v <= 0.01);
 
     return 0;
 }
