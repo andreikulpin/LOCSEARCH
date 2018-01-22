@@ -20,6 +20,7 @@
 #include <methods/lins/goldsec/goldsec.hpp>
 #include <methods/lins/smartls/smartls.hpp>
 #include "mtcoordescent.hpp"
+#include "ctcoordescent.hpp"
 
 /*
  * 
@@ -36,28 +37,13 @@ int main(int argc, char** argv) {
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
      
-    LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
-#if 1    
-    LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
-    locs->getOptions().mSInit = 0.1;
-    locs->getOptions().mDelta = 0.02;    
-    locs->getOptions().mMaxBackSteps = 16;
-    locs->getOptions().mDoTracing = true;
-#endif
-#if  0  
-    LOCSEARCH::SmartLS<double> *locs = new LOCSEARCH::SmartLS<double>(*mpp);
-    locs->getOptions().mSInit = 1e-4;
-    locs->getOptions().mDoTracing = true;
-    locs->getOptions().mMaxFailStepsBack = 0;
-#endif    
+    LOCSEARCH::CTCoordinateDescent<double> desc(*mpp);
+    //LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
     desc.getOptions().mHInit = .1;
     desc.getOptions().mHLB = 1e-10;
     //desc.getOptions().mParallelMode = false;
 
-    //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
-    //desc.getOptions().mSearchType = LOCSEARCH::MTCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
-    desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
-    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::UNIFORM_ADAPTATION;
+    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
