@@ -20,7 +20,6 @@
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
 #include <methods/lins/smartls/smartls.hpp>
-#include "mtcoordescent.hpp"
 #include "ctcoordescent.hpp"
 
 /*
@@ -42,14 +41,12 @@ int main(int argc, char** argv) {
      */
 
     LOCSEARCH::CTCoordinateDescent<double> desc(*mpp);
-    //LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
     desc.getOptions().mHInit = .1;
     //desc.getOptions().mHLB = 1e-10;
     //desc.getOptions().mParallelMode = false;
     desc.getOptions().mNumThreads = 6;
     desc.getOptions().mGradLB = 0;
 
-    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
