@@ -12,6 +12,7 @@
  */
 
 #include <iostream>
+#include <chrono>
 #include <box/boxutils.hpp>
 #include <oneobj/contboxconstr/dejong.hpp>
 #include <oneobj/contboxconstr/rosenbrock.hpp>
@@ -28,32 +29,40 @@
 int main(int argc, char** argv) {
     const int n = 500;
     //OPTITEST::DejongProblemFactory fact(n, -4, 8);
-    
-    
+
+
     //OPTITEST::Ackley1ProblemFactory fact(std::vector<std::pair<double,double>>(n, std::pair<double, double>(-4,8)));
-    OPTITEST::RosenbrockProblemFactory fact(n, -4, 8);
+    OPTITEST::RosenbrockProblemFactory fact(n, -2, 5);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
+
+    /*
     auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
-     
+     */
+
     LOCSEARCH::CTCoordinateDescent<double> desc(*mpp);
     //LOCSEARCH::MTCoordinateDescent<double> desc(*mpp);
     desc.getOptions().mHInit = .1;
-    desc.getOptions().mHLB = 1e-10;
+    //desc.getOptions().mHLB = 1e-10;
     //desc.getOptions().mParallelMode = false;
+    desc.getOptions().mNumThreads = 6;
+    desc.getOptions().mGradLB = 0;
 
     //desc.getOptions().mVicinityAdaptation = LOCSEARCH::MTCoordinateDescent<double>::VARIABLE_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
+    auto start = std::chrono::steady_clock::now();
     bool rv = desc.search(x, v);
+    auto end = std::chrono::steady_clock::now();
+    auto diff = end - start;
     std::cout << desc.about() << "\n";
     std::cout << "Found v = " << mpp->mObjectives.at(0)->func(x) << "\n";
-    std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
-    std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
+    //std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
+    //std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     //SG_ASSERT(v <= 0.01);
-
+    std::cout << "Execution time = " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
     return 0;
 }
 

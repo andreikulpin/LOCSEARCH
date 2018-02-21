@@ -87,7 +87,7 @@ namespace LOCSEARCH {
             /**
              * Run in parallel mode or not
              */
-            bool mParallelMode = true;
+            int mNumThreads = 1;
             /**
              * Initial value of granularity
              */
@@ -170,7 +170,7 @@ namespace LOCSEARCH {
                     }
                 };
                 
-                const int nt = 24;
+                const int nt = mOptions.mNumThreads;
                 std::vector<std::thread> tv;
                 for(int i = 0; i < nt; i ++) {
                     tv.emplace_back(subloop, i, nt);
@@ -183,6 +183,7 @@ namespace LOCSEARCH {
                     const int j = 2 * i;
                     grad[i] = (fv[j + 1] - fv[j]) / (sft[j] + sft[j + 1]);
                 }
+                 
                 for (int i = 0; i < n2; i++) {
                     if (fv[i] < fcur) {
                         inc(sft[i]);
@@ -200,12 +201,16 @@ namespace LOCSEARCH {
                 auto itmax = std::max_element(sft.begin(), sft.end());
                 if (*itmax <= mOptions.mHLB)
                     break;
+                
+                
                 FT gnorm = 0;
+                
                 std::for_each(grad.begin(), grad.end(), [&gnorm](FT & el) {
                     gnorm += el * el;
                 });
-                if (gnorm * gnorm < mOptions.mGradLB)
+                if (gnorm  < mOptions.mGradLB * mOptions.mGradLB)
                     break;
+                 
             }
             std::copy(xold.begin(), xold.end(), x);
             v = fcur;

@@ -160,37 +160,32 @@ namespace LOCSEARCH {
             FT fcur = obj->func(x);
             int n = mProblem.mVarTypes.size();
             const snowgoose::Box<double>& box = *(mProblem.mBox);
-            std::vector<FT> sft(n, mOptions.mHInit);
+            const int n2 = 2 * n;
+            std::vector<FT> sft(n2, mOptions.mHInit);
             FT H = mOptions.mHInit;
             FT* xold = new FT[n];
             FT* grad = new FT[n];
             FT* ndir = new FT[n];
 
-            auto inc = [this] (FT h) {
-                FT t = h;
+            auto inc = [this] (FT & s) {
                 if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
-                    t = h * mOptions.mInc;
-                    t = SGMIN(t, mOptions.mHUB);
+                    s = std::min(s * mOptions.mInc, mOptions.mHUB);
                 }
-                return t;
             };
-
-            auto dec = [this](FT h) {
-                FT t = h;
+            auto dec = [this] (FT & s) {
                 if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::VARIABLE_ADAPTATION) {
-                    t = h * mOptions.mDec;
-                    t = SGMAX(t, mOptions.mHLB);
+                    s = std::max(s * mOptions.mDec, mOptions.mHLB);
                 }
-                return t;
             };
 
             auto step = [&] () {
                 int dir = 1;
                 for (int i = 0; i < n;) {
-                    const FT h = sft[i];
+                    const int sfti = (dir > 0) ? 2 * i : 2 * i + 1;
+                    const FT h = sft[sfti];
                     FT y = x[i] + dir * h;
-                    y = SGMAX(y, box.mA[i]);
-                    y = SGMIN(y, box.mB[i]);
+                    y = std::max(y, box.mA[i]);
+                    y = std::min(y, box.mB[i]);
                     const FT tmp = x[i];
                     x[i] = y;
                     const FT fn = obj->func(x);
@@ -203,15 +198,15 @@ namespace LOCSEARCH {
                     }
                     if (fn >= fcur) {
                         x[i] = tmp;
+                        dec(sft[sfti]);
                         if (dir == 1)
                             dir = -1;
                         else {
-                            sft[i] = dec(h);
                             i++;
                             dir = 1;
                         }
                     } else {
-                        sft[i] = inc(h);
+                        inc(sft[sfti]);
                         fcur = fn;
                         dir = 1;
                         i++;
@@ -230,11 +225,12 @@ namespace LOCSEARCH {
                 if (mOptions.mVicinityAdaptation == VicinityAdaptationPolicy::UNIFORM_ADAPTATION) {
                     if (fcur < fold) {
                         H *= mOptions.mInc;
-                        H = SGMIN(H, mOptions.mHUB);
+                        H = std::min(H, mOptions.mHUB);
                     } else {
                         H *= mOptions.mDec;
+                        H = std::max(H, mOptions.mHLB);
                     }
-                    sft.assign(n, H);
+                    sft.assign(n2, H);
                 }
                 FT gnorm = snowgoose::VecUtils::vecNormTwo(n, grad);
                 if (mOptions.mDoTracing) {
@@ -245,11 +241,11 @@ namespace LOCSEARCH {
                     break;
                 }
                 if (mOptions.mDoTracing) {
-                    std::cout << "Vicinity size = " << snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr) << "\n";
+                    std::cout << "Vicinity size = " << snowgoose::VecUtils::maxAbs(n2, sft.data(), nullptr) << "\n";
                 }
 
                 if (fcur == fold) {
-                    FT vs = snowgoose::VecUtils::maxAbs(n, sft.data(), nullptr);
+                    FT vs = snowgoose::VecUtils::maxAbs(n2, sft.data(), nullptr);
                     if (vs <= mOptions.mHLB)
                         break;
                 } else {
@@ -354,7 +350,7 @@ namespace LOCSEARCH {
         Options mOptions;
         std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
-        std::unique_ptr<LineSearch<FT>> mLS;
+        std::unique_ptr<LineSearch < FT>> mLS;
 
     };
 }

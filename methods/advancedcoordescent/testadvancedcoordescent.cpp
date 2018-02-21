@@ -19,12 +19,12 @@
  * 
  */
 int main(int argc, char** argv) {
-    const int n = 200;
+    const int n = 500;
     //OPTITEST::DejongProblemFactory fact(n, -4, 8);
     
     
     //OPTITEST::Ackley1ProblemFactory fact(std::vector<std::pair<double,double>>(n, std::pair<double, double>(-4,8)));
-    OPTITEST::RosenbrockProblemFactory fact(n, -4, 8);
+    OPTITEST::RosenbrockProblemFactory fact(n, -2, 5);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
     auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
     locs->getOptions().mSInit = 0.1;
     locs->getOptions().mDelta = 0.02;
     locs->getOptions().mMaxBackSteps = 16;
-    locs->getOptions().mDoTracing = true;
+    //locs->getOptions().mDoTracing = true;
 #endif
 #if  0  
     LOCSEARCH::SmartLS<double> *locs = new LOCSEARCH::SmartLS<double>(*mpp);
@@ -45,13 +45,14 @@ int main(int argc, char** argv) {
 #endif    
     desc.getLineSearch().reset(locs);    
     desc.getOptions().mHInit = .1;
-    desc.getOptions().mDoTracing = true;
+    //desc.getOptions().mDoTracing = true;
+    desc.getOptions().mGradLB = 0;
 
     //desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::PSEUDO_GRAD;
     //desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::HOOKE_JEEVES;
     desc.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::NO_DESCENT;
-    desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::VARIABLE_ADAPTATION;
-    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::UNIFORM_ADAPTATION;
+    //desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::VARIABLE_ADAPTATION;
+    desc.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::UNIFORM_ADAPTATION;
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     double v;
