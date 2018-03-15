@@ -76,11 +76,15 @@ namespace LOCSEARCH {
             /**
              * Max unsuccessful steps number
              */
-            int mEps = 0.6;
+            FT mEps = 0.6;
             /**
              * Max unsuccessful steps number
              */
-            int maxUnsuccessStepsNumber = 3;
+            int maxUnsuccessStepsNumber = 10;
+            /**
+             * Max steps number
+             */
+            int maxStepsNumber = 100;
         };
 
         /**
@@ -249,7 +253,7 @@ namespace LOCSEARCH {
 
                 if (!success) {
                     if (fcur < fOld || unsuccessSteps >= mOptions.maxUnsuccessStepsNumber) {
-                        FT dist = snowgoose::VecUtils::vecDist(n, xOld, x);
+                        FT dist = snowgoose::VecUtils::vecDist(n, xOld, x); 
                         
                         if (dist > mOptions.mEps) {
                             fOld = fcur;
@@ -261,6 +265,15 @@ namespace LOCSEARCH {
                             
                         } else {
                             br = true;
+                            
+                            if (unsuccessSteps >= mOptions.maxUnsuccessStepsNumber) {
+                                std::cout << "Stopped as number of unsuccessful steps reached its limit of " 
+                                        << mOptions.maxUnsuccessStepsNumber << "\n";
+                                
+                            } else {
+                                std::cout << "Stopped as last jump length was less than eps" << "\n";
+                                std::cout << "Eps = " << mOptions.mEps << " Dist = " << dist << "\n";
+                            }
                         }
                     
                     } else {
@@ -268,11 +281,16 @@ namespace LOCSEARCH {
                         for (int i = 0; i < n; i++) {
                             br = SGABS(sft[i]) <= mOptions.mEps;
                         }
+                        
+                        if (br) {
+                            std::cout << "Stopped as all step lengths was less than eps\n";
+                        }
                     }
                 }
                 
-                if (stepNum >= 30) {
+                if (stepNum >= mOptions.maxStepsNumber) {
                     br = true;
+                    std::cout << "Stopped as number of steps was too big\n";
                 }
 
                 for (auto w : mWatchers) {
