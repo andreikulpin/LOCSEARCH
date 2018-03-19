@@ -158,7 +158,9 @@ namespace LOCSEARCH {
             };
 
             auto step = [&] () {
-                std::cout << "\n*** Step " << stepNum << " ***\n";
+                if (mOptions.mDoTracing) {
+                    std::cout << "\n*** Step " << stepNum << " ***\n";
+                }
                 bool isStepSuccessful = false;
                 FT xn[n]; 
                 snowgoose::VecUtils::vecCopy(n, x, xn);
@@ -192,7 +194,9 @@ namespace LOCSEARCH {
             };
 
             auto ortogonalize = [&] () {
-                std::cout << "\n** Ortogonalize1 **" << "\n";
+                if (mOptions.mDoTracing) {
+                    std::cout << "\n** Ortogonalize1 **" << "\n";
+                }
                 
                 snowgoose::VecUtils::vecSet(n * n, 0., a);
 
@@ -227,10 +231,10 @@ namespace LOCSEARCH {
                     printMatrix("a", n, n, a);
                     printMatrix("b", n, n, b);
                     printMatrix("d", n, n, d);
+                    std::cout << "*************" << "\n";
                 }
-                std::cout << "*************" << "\n";
             };
-
+            
             if (mOptions.mDoTracing) {
                 printArray("x", n, x);
                 printVector("sft", n, sft);
