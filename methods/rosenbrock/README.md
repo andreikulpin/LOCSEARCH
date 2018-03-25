@@ -5,12 +5,12 @@
 
 ## Параметры поиска
 В структуре *Options* описываются параметры поиска:
-1. *mHInit* – исходный массив значений шагов по каждому направлению.
-2. *mInc* – исходное значение коэффициента увеличения шага.
-3. *mDec* – исходное значение коэффициента уменьшения шага.
-4. *mEps* – параметр для остановки алгоритма.
-5. *maxUnsuccessStepsNumber* – максимальное число неудачных серий шагов по всем направлениям на одной итерации.
-6. *maxStepsNumber* – ограничение на число итераций.
+1. `mHInit` – исходный массив значений шагов по каждому направлению.
+2. `mInc` – исходное значение коэффициента увеличения шага.
+3. `mDec` – исходное значение коэффициента уменьшения шага.
+4. `mEps` – параметр для остановки алгоритма.
+5. `maxUnsuccessStepsNumber` – максимальное число неудачных серий шагов по всем направлениям на одной итерации.
+6. `maxStepsNumber` – ограничение на число итераций.
 
 ## Реализация алгоритма - метод *search*
 ### Инициализация переменных
@@ -50,7 +50,7 @@ FT * b = new FT[n_sqr];
 FT * d = new FT[n_sqr];
 ```
 
-### Функция *step*
+### Функция `step()`
 Попытка продвинуться по каждому направлению с учетом текущей величины шага по данному направлению. Вернет true, если хотя бы один шаг по какому-либо из направлений 
 оказался удачным. 
 
@@ -68,7 +68,7 @@ snowgoose::VecUtils::vecCopy(n, x, xn);
 ```c++
 FT fn = fcur;
 ```
-###### Проход по все направлениям в цикле
+###### Проход по всем направлениям в цикле
 `FT h` – величина шага по i-тому напрвлению. 
 ```c++
 const FT h = sft[i];
@@ -105,7 +105,7 @@ fcur = ftmp;
 sft[i] = dec(h);
 ```
 
-### Функция *ortogonalize*
+### Функция `ortogonalize()`
 Поворот базиса *dirs* с помощью процедуры Грама-Шмидта:
 
 <a href="https://www.codecogs.com/eqnedit.php?latex=a&space;_i&space;=&space;\begin{cases}&space;&&space;d&space;_i&space;,\qquad&space;\lambda&space;_i=0&space;\\&space;&&space;\sum_{j=1}^n&space;\lambda&space;_i&space;d&space;_j&space;,\qquad&space;\lambda&space;_i&space;\neq&space;0&space;\end{cases}" target="_blank"><img src="https://latex.codecogs.com/svg.latex?a&space;_i&space;=&space;\begin{cases}&space;&&space;d&space;_i&space;,\qquad&space;\lambda&space;_i=0&space;\\&space;&&space;\sum_{j=1}^n&space;\lambda&space;_i&space;d&space;_j&space;,\qquad&space;\lambda&space;_i&space;\neq&space;0&space;\end{cases}" title="a _i = \begin{cases} & d _i ,\qquad \lambda _i=0 \\ & \sum_{j=1}^n \lambda _i d _j ,\qquad \lambda _i \neq 0 \end{cases}" /></a>
@@ -118,7 +118,7 @@ sft[i] = dec(h);
 
 
 ### Основной цикл поиска
-Делаем вызов функции *step*
+Делаем вызов функции `step()`
 ```c++
 bool success = step();
 ```
@@ -128,16 +128,16 @@ bool success = step();
 unsuccessSteps = success ? 0 : unsuccessSteps + 1;
 ```
 
-#### Итерация неудачна (*success == false*): 
-* Если после последнего поворота базиса текущее значение функции изменилось (*fcur < fOld*), либо число неудачных итераций превысило максимум (*unsuccessSteps >= mOptions.maxUnsuccessStepsNumber*), считаем расстояние между текущей и предыдущей точками
+#### Итерация неудачна (`success == false`): 
+* Если после последнего поворота базиса текущее значение функции изменилось (`fcur < fOld`), либо число неудачных итераций превысило максимум (`unsuccessSteps >= mOptions.maxUnsuccessStepsNumber`), считаем расстояние между текущей и предыдущей точками
 ```c++
 FT dist = snowgoose::VecUtils::vecDist(n, xOld, x); 
 ```
-Если расстояние меньше границы (*dist < mOptions.mEps*), заканчиваем вычисления, иначе поворачиваем базис и ставим значениям шагов по каждому направлению исходное значение:
+Если расстояние меньше границы (`dist < mOptions.mEps`), заканчиваем вычисления, иначе поворачиваем базис и ставим значениям шагов по каждому направлению исходное значение:
 ```c++
 ortogonalize();
 sft.assign(mOptions.mHInit, mOptions.mHInit + n);
 snowgoose::VecUtils::vecSet(n, 0., stepLenghts);
 ```
 
-* Если после последнего поворота базиса текущее значение функции не изменилось (*fcur == fOld*), и значения шагов по всем направлениям меньше &epsilon;, заканчиваем вычисления.
+* Если после последнего поворота базиса текущее значение функции не изменилось (`fcur == fOld`), и значения шагов по всем направлениям меньше &epsilon;, заканчиваем вычисления.
