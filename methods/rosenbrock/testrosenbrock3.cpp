@@ -17,7 +17,7 @@
  * 
  */
 int main(int argc, char** argv) {
-    const int n = 50;
+    const int n = argc > 1 ? atoi(argv[1]) : 50;
     
     OPTITEST::RosenbrockProblemFactory fact(n, -2, 5);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
@@ -36,6 +36,8 @@ int main(int argc, char** argv) {
     desc.getOptions().mDec = - 0.5;
     desc.getOptions().maxStepsNumber = 50000;
 
+    desc.getOptions().mEps = argc > 2 ? atof(argv[2]) : 0.01;
+    
     double x[n];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     

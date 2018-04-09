@@ -74,7 +74,7 @@ namespace LOCSEARCH {
              */
             bool mDoTracing = false;
             /**
-             * Max unsuccessful steps number
+             * Stop criterion
              */
             FT mEps = 0.6;
             /**
@@ -274,12 +274,17 @@ namespace LOCSEARCH {
                             br = true;
                             
                             if (unsuccessSteps >= mOptions.maxUnsuccessStepsNumber) {
-                                std::cout << "Stopped as number of unsuccessful steps reached its limit of " 
-                                        << mOptions.maxUnsuccessStepsNumber << "\n";
+                                if (mOptions.mDoTracing) {
+                                    std::cout << "Stopped as number of unsuccessful steps reached its limit of " 
+                                            << mOptions.maxUnsuccessStepsNumber << "\n";
+                                }
                                 
                             } else {
-                                std::cout << "Stopped as last jump length was less than eps" << "\n";
-                                std::cout << "Eps = " << mOptions.mEps << " Dist = " << dist << "\n";
+                                if (mOptions.mDoTracing) {
+                                    std::cout << "Stopped as last jump length was less than eps" << "\n";
+                                    std::cout << "Eps = " << mOptions.mEps << " Dist = " << dist << "\n";
+                           
+                                }
                             }
                         }
                     
@@ -290,7 +295,9 @@ namespace LOCSEARCH {
                         }
                         
                         if (br) {
-                            std::cout << "Stopped as all step lengths was less than eps\n";
+                            if (mOptions.mDoTracing) {
+                                std::cout << "Stopped as all step lengths was less than eps = " << mOptions.mEps << "\n";
+                            }
                         }
                     }
                 }
@@ -321,6 +328,8 @@ namespace LOCSEARCH {
 
         std::string about() const {
             std::ostringstream os;
+            os << "Rosenbrock method" << "\n";
+            os << "Epsilon = " << mOptions.mEps << "\n";
             return os.str();
         }
 
