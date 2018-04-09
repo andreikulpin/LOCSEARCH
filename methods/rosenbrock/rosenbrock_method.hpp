@@ -359,7 +359,7 @@ namespace LOCSEARCH {
         void printMatrix(const char * name, int n, int m, FT * matrix) {
             std::cout << name << " =\n";
             for (int i = 0; i < n; i++) {
-                std::cout << snowgoose::VecUtils::vecPrint(m, &(matrix[i + n])) << "\n";
+                std::cout << snowgoose::VecUtils::vecPrint(m, &(matrix[i * n])) << "\n";
             }
         }
         
