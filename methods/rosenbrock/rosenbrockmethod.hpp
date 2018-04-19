@@ -149,7 +149,7 @@ namespace LOCSEARCH {
             FT * d = new FT[nsqr];
 
             int unsuccessSteps = 0;
-            int sterNum = 1;
+            int stepNum = 1;
             bool br = false;
 
             if (mOptions.mDoTracing) {
@@ -179,7 +179,7 @@ namespace LOCSEARCH {
              */
             auto step = [&] () {
                 if (mOptions.mDoTracing) {
-                    std::cout << "\n*** Step " << sterNum << " ***\n";
+                    std::cout << "\n*** Step " << stepNum << " ***\n";
                 }
                 bool isStepSuccessful = false;
                 FT xn[n];
@@ -258,7 +258,7 @@ namespace LOCSEARCH {
             while (!br) {
                 bool success = step();
                 unsuccessSteps = success ? 0 : unsuccessSteps + 1;
-                sterNum++;
+                stepNum++;
 
                 if (mOptions.mDoTracing) {
                     std::cout << (success ? "Success" : "Not success") << "\n";
@@ -309,16 +309,16 @@ namespace LOCSEARCH {
                     }
                 }
 
-                if (sterNum >= mOptions.mMaxStepsNumber) {
+                if (stepNum >= mOptions.mMaxStepsNumber) {
                     br = true;
                     std::cout << "Stopped as number of steps was too big\n";
                 }
 
                 for (auto w : mWatchers) {
-                    w(fcur, x, sft, sterNum);
+                    w(fcur, x, sft, stepNum);
                 }
                 for (auto s : mStoppers) {
-                    if (s(fcur, x, sterNum)) {
+                    if (s(fcur, x, stepNum)) {
                         br = true;
                         break;
                     }
