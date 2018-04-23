@@ -62,11 +62,11 @@ namespace LOCSEARCH {
             /**
              * Decrease in the case of failure
              */
-            FT mDec = -0.5;
+            FT mDec = 0.5;
             /**
              * Lower bound for granularity
              */
-            FT mHLB = -1e+02;
+            FT mHLB = 1e-03;
             /**
              * Upper bound on granularity
              */
@@ -75,14 +75,6 @@ namespace LOCSEARCH {
              * Trace on/off
              */
             bool mDoTracing = false;
-            /**
-             * Minimal tolerance
-             */
-            FT mEps = 1e-3;
-            /**
-             * Max unsuccessful steps number
-             */
-            int mMaxUnsuccessStepsNumber = 10;
             /**
              * Total max steps number
              */
@@ -100,7 +92,6 @@ namespace LOCSEARCH {
             unsigned int typ = COMPI::MPUtils::getProblemType(prob);
             SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
         }
-
 
         /**
          * Performs search
@@ -133,10 +124,10 @@ namespace LOCSEARCH {
 
             auto printDirs = [&dirs, n] () {
                 std::cout << "==== dirs ====\n";
-                for (int i = 0; i < n; i ++) {
+                for (int i = 0; i < n; i++) {
                     FT* d = dirs + i * n;
                     std::cout << "[";
-                    for(int j = 0; j < n; j ++) {
+                    for (int j = 0; j < n; j++) {
                         std::cout << d[j] << " ";
                     }
                     std::cout << "]\n";
@@ -144,12 +135,12 @@ namespace LOCSEARCH {
                 std::cout << "==============\n";
             };
 
-            FT * a = new FT[nsqr];
+            FT * a = new FT[n];
             FT * b = new FT[nsqr];
             FT * d = new FT[nsqr];
 
             int unsuccessSteps = 0;
-            int stepNum = 1;
+            int stageNum = 1;
             bool br = false;
 
             if (mOptions.mDoTracing) {
@@ -162,14 +153,14 @@ namespace LOCSEARCH {
             auto inc = [this] (FT h) {
                 FT t = h;
                 t = h * mOptions.mInc;
-                t = SGMIN(t, mOptions.mHUB);
+                t = std::min(t, mOptions.mHUB);
                 return t;
             };
 
             auto dec = [this](FT h) {
                 FT t = h;
                 t = h * mOptions.mDec;
-                t = SGMAX(t, mOptions.mHLB);
+                t = std::max(t, mOptions.mHLB);
                 return t;
             };
 
@@ -179,12 +170,11 @@ namespace LOCSEARCH {
              */
             auto step = [&] () {
                 if (mOptions.mDoTracing) {
-                    std::cout << "\n*** Step " << stepNum << " ***\n";
+                    std::cout << "\n*** Step " << stageNum << " ***\n";
                 }
                 bool isStepSuccessful = false;
                 FT xn[n];
                 snowgoose::VecUtils::vecCopy(n, x, xn);
-                FT fn = fcur;
 
                 for (int i = 0; i < n; i++) {
                     const FT h = sft[i];
@@ -197,15 +187,15 @@ namespace LOCSEARCH {
                         // std::cout << "ftmp = " << ftmp << "\n";
                     }
 
-                    if (ftmp < fn) {
+                    if (ftmp < fcur) {
                         isStepSuccessful = true;
                         stepLen[i] += h;
                         sft[i] = inc(h);
                         snowgoose::VecUtils::vecCopy(n, xtmp, xn);
                         fcur = ftmp;
-
                     } else {
-                        sft[i] = dec(h);
+                        const FT nh = dec(std::abs(h));
+                        sft[i] = (h > 0) ? - nh : nh;
                     }
                 }
 
@@ -218,24 +208,22 @@ namespace LOCSEARCH {
                     std::cout << "\n** Ortogonalize **" << "\n";
                 }
 
-                snowgoose::VecUtils::vecSet(n * n, 0., a);
 
                 for (int i = 0; i < n; i++) {
                     if (stepLen[i] == 0) {
-                        snowgoose::VecUtils::vecCopy(n, &(dirs[i * n]), &(a[i * n]));
+                        snowgoose::VecUtils::vecCopy(n, &(dirs[i * n]), a);
 
                     } else {
+                        snowgoose::VecUtils::vecSet(n, 0., a);
                         for (int j = i; j < n; j++) {
-                            // printArray("dirs ", n, dirs[j]);
-                            snowgoose::VecUtils::vecSaxpy(n, &(a[i * n]), &(dirs[j * n]), stepLen[j], &(a[i * n]));
-                            // printArray("a ", n, a[i]);
+                            snowgoose::VecUtils::vecSaxpy(n, a, &(dirs[j * n]), stepLen[j], a);
                         }
                     }
 
-                    snowgoose::VecUtils::vecCopy(n, &(a[i * n]), &(b[i * n]));
+                    snowgoose::VecUtils::vecCopy(n, a, &(b[i * n]));
 
                     for (int j = 0; j < i; j++) {
-                        FT scalarMlp = snowgoose::VecUtils::vecScalarMult(n, &(a[i * n]), &(d[j * n]));
+                        FT scalarMlp = snowgoose::VecUtils::vecScalarMult(n, a, &(d[j * n]));
                         snowgoose::VecUtils::vecSaxpy(n, &(b[i * n]), &(d[j * n]), -scalarMlp, &(b[i * n]));
                     }
 
@@ -248,7 +236,6 @@ namespace LOCSEARCH {
                 }
 
                 if (mOptions.mDoTracing) {
-                    printMatrix("a", n, n, a);
                     printMatrix("b", n, n, b);
                     printMatrix("d", n, n, d);
                     std::cout << "*************" << "\n";
@@ -258,7 +245,7 @@ namespace LOCSEARCH {
             while (!br) {
                 bool success = step();
                 unsuccessSteps = success ? 0 : unsuccessSteps + 1;
-                stepNum++;
+                stageNum++;
 
                 if (mOptions.mDoTracing) {
                     std::cout << (success ? "Success" : "Not success") << "\n";
@@ -267,58 +254,35 @@ namespace LOCSEARCH {
                 }
 
                 if (!success) {
-                    if (fcur < fOld || unsuccessSteps >= mOptions.mMaxUnsuccessStepsNumber) {
-                        FT dist = snowgoose::VecUtils::vecDist(n, xOld, x);
-
-                        if (dist > mOptions.mEps) {
-                            fOld = fcur;
-                            snowgoose::VecUtils::vecCopy(n, x, xOld);
-                            ortogonalize();
-                            printDirs();
-                            sft = mOptions.mHInit;
-                            stepLen.assign(n, 0);
-                        } else {
-                            br = true;
-
-                            if (unsuccessSteps >= mOptions.mMaxUnsuccessStepsNumber) {
-                                if (mOptions.mDoTracing) {
-                                    std::cout << "Stopped as number of unsuccessful steps reached its limit of "
-                                            << mOptions.mMaxUnsuccessStepsNumber << "\n";
-                                }
-
-                            } else {
-                                if (mOptions.mDoTracing) {
-                                    std::cout << "Stopped as last jump length was less than eps" << "\n";
-                                    std::cout << "Eps = " << mOptions.mEps << " Dist = " << dist << "\n";
-
-                                }
-                            }
+                    br = true;
+                    for (int i = 0; i < n; i++) {
+                        if (std::abs(sft[i]) > mOptions.mHLB) {
+                            br = false;
+                            break;
                         }
+                    }
 
-                    } else {
-                        br = true;
-                        for (int i = 0; i < n; i++) {
-                            br = SGABS(sft[i]) <= mOptions.mEps;
-                        }
-
-                        if (br) {
-                            if (mOptions.mDoTracing) {
-                                std::cout << "Stopped as all step lengths was less than eps = " << mOptions.mEps << "\n";
-                            }
-                        }
+                    if (!br) {
+                        fOld = fcur;
+                        snowgoose::VecUtils::vecCopy(n, x, xOld);
+                        ortogonalize();
+                                                    //sft = mOptions.mHInit;
+                        stepLen.assign(n, 0);
+                    } else if (mOptions.mDoTracing) {
+                        std::cout << "Stopped as all step lengths was less than " << mOptions.mHLB << "\n";
                     }
                 }
 
-                if (stepNum >= mOptions.mMaxStepsNumber) {
+                if (stageNum >= mOptions.mMaxStepsNumber) {
                     br = true;
-                    std::cout << "Stopped as number of steps was too big\n";
+                    std::cout << "Stopped as number of stages was too big\n";
                 }
 
                 for (auto w : mWatchers) {
-                    w(fcur, x, sft, stepNum);
+                    w(fcur, x, sft, stageNum);
                 }
                 for (auto s : mStoppers) {
-                    if (s(fcur, x, stepNum)) {
+                    if (s(fcur, x, stageNum)) {
                         br = true;
                         break;
                     }
@@ -336,7 +300,6 @@ namespace LOCSEARCH {
         std::string about() const {
             std::ostringstream os;
             os << "Rosenbrock method" << "\n";
-            os << "Epsilon = " << mOptions.mEps << "\n";
             return os.str();
         }
 

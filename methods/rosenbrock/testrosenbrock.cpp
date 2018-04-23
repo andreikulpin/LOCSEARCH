@@ -29,11 +29,8 @@ int main(int argc, char** argv) {
 
     double x[n] = {8, 9};
     LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
-    desc.getOptions().mHInit = std::vector<double>({1., 2.});
+    desc.getOptions().mHInit = std::vector<double>({1., 1.});
     desc.getOptions().mDoTracing = true;
-    desc.getOptions().mEps = 0.6;
-    desc.getOptions().mInc = 2;
-    desc.getOptions().mDec = -0.5;
 
 
 
