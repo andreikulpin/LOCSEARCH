@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     mpp->mObjectives.push_back(obj);
 
 
-    double x[n] = {8, 9};
+    double x[n] = {3, 3};
     LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
     desc.getOptions().mHInit = std::vector<double>({1., 1.});
     desc.getOptions().mDoTracing = true;

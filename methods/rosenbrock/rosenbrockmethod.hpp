@@ -180,19 +180,24 @@ namespace LOCSEARCH {
                     const FT h = sft[i];
                     FT xtmp[n];
                     snowgoose::VecUtils::vecSaxpy(n, xn, &(dirs[i * n]), h, xtmp);
-                    FT ftmp = obj->func(xtmp);
-
                     if (mOptions.mDoTracing) {
+                        std::cout << "i = " << i << "\n";
                         printArray("xtmp", n, xtmp);
                         // std::cout << "ftmp = " << ftmp << "\n";
                     }
+                    if (snowgoose::BoxUtils::isIn(xtmp, *(mProblem.mBox))) {
+                        FT ftmp = obj->func(xtmp);
 
-                    if (ftmp < fcur) {
-                        isStepSuccessful = true;
-                        stepLen[i] += h;
-                        sft[i] = inc(h);
-                        snowgoose::VecUtils::vecCopy(n, xtmp, xn);
-                        fcur = ftmp;
+                        if (ftmp < fcur) {
+                            isStepSuccessful = true;
+                            stepLen[i] += h;
+                            sft[i] = inc(h);
+                            snowgoose::VecUtils::vecCopy(n, xtmp, xn);
+                            fcur = ftmp;
+                        } else {
+                            const FT nh = dec(std::abs(h));
+                            sft[i] = (h > 0) ? - nh : nh;
+                        }
                     } else {
                         const FT nh = dec(std::abs(h));
                         sft[i] = (h > 0) ? - nh : nh;
@@ -266,7 +271,7 @@ namespace LOCSEARCH {
                         fOld = fcur;
                         snowgoose::VecUtils::vecCopy(n, x, xOld);
                         ortogonalize();
-                                                    //sft = mOptions.mHInit;
+                        //sft = mOptions.mHInit;
                         stepLen.assign(n, 0);
                     } else if (mOptions.mDoTracing) {
                         std::cout << "Stopped as all step lengths was less than " << mOptions.mHLB << "\n";
