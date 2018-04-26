@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include "testfuncs/benchmarks.hpp"
-#include "rosenbrock_bench.cpp"
+#include "rosenbrock_bench.hpp"
 
 using BM = Benchmark<double>;
 
