@@ -1,0 +1,68 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/* 
+ * File:   test_acd_bench.cpp
+ * Author: andrei
+ *
+ * Created on April 27, 2018, 12:48 AM
+ */
+
+#include <iostream>
+#include <box/boxutils.hpp>
+#include <funccnt.hpp>
+#include <methods/lins/goldsec/goldsec.hpp>
+#include <methods/lins/smartls/smartls.hpp>
+#include "acd_bench.hpp"
+#include <oneobj/contboxconstr/rosenbrock.hpp>
+
+using BM = Benchmark<double>;
+
+bool testBench(const BM& bm, double eps) {
+    const int dim = bm.getDim();
+    LOCSEARCH::BenchmarkAdvancedCoordinateDescent<double> searchMethod(bm);
+    
+    OPTITEST::RosenbrockProblemFactory fact(dim, bm.getBounds()[0].first,bm.getBounds()[0].second);
+    COMPI::MPProblem<double> *mpp = fact.getProblem();
+    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
+    mpp->mObjectives.pop_back();
+    mpp->mObjectives.push_back(obj);
+    
+    LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
+    locs->getOptions().mSInit = 0.1;
+    locs->getOptions().mDelta = 0.02;
+    locs->getOptions().mMaxBackSteps = 16;
+    //locs->getOptions().mDoTracing = true;
+    
+    searchMethod.getLineSearch().reset(locs);    
+    searchMethod.getOptions().mHInit = .1;
+    //searchMethod.getOptions().mDoTracing = true;
+    searchMethod.getOptions().mGradLB = 0;
+    
+    double x[dim];
+    for (int i = 0; i < dim; i++) {
+        double a = bm.getBounds()[i].first;
+        double b = bm.getBounds()[i].second;
+        x[i] = (b + a) / 2.0;
+    }
+    
+    double v;
+    
+    std::cout << "*************Testing benchmark**********" << std::endl;
+    searchMethod.search(x, v);
+    std::cout << "v = " << v << std::endl;
+    std::cout << "the difference is " << v - bm.getGlobMinY() << std::endl;
+}
+
+int main(int argc, char** argv) {
+    const int dim = argc > 1 ? atoi(argv[1]) : 50;
+    double eps = argc > 2 ? atof(argv[2]) : 0.01;
+
+    RosenbrockBenchmark<double> rosenbrockBench(dim);
+    testBench(rosenbrockBench, eps);
+    return 0;
+}
+
