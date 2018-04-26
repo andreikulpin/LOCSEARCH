@@ -19,7 +19,8 @@ namespace OPTITEST {
         }
 
         double func(const double* x) const {
-            return 4 * SGSQR(x[0] - 5) + SGSQR(x[1] - 6);
+//            return 4 * SGSQR(x[0] - 5) + SGSQR(x[1] - 6);
+            return 100 * SGSQR(x[1] - x[0] * x[0]) + SGSQR(1 - x[1]);
         }
 
     private:

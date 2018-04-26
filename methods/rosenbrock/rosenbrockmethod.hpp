@@ -72,13 +72,22 @@ namespace LOCSEARCH {
              */
             FT mHUB = 1e+02;
             /**
-             * Trace on/off
+             * Mininam gradient extimation to do ortoganalization
              */
-            bool mDoTracing = false;
+            FT mMinGrad = 1e-03;
+            /**
+             * Do ortoganization
+             */
+            bool mDoOrt = true;
+
             /**
              * Total max steps number
              */
             int mMaxStepsNumber = 100;
+            /**
+             * Trace on/off
+             */
+            bool mDoTracing = false;
         };
 
         /**
@@ -106,7 +115,6 @@ namespace LOCSEARCH {
             const int nsqr = n * n;
 
             FT fcur = obj->func(x);
-            FT fOld = fcur;
             FT xOld[n];
             snowgoose::VecUtils::vecCopy(n, x, xOld);
 
@@ -139,16 +147,9 @@ namespace LOCSEARCH {
             FT * b = new FT[nsqr];
             FT * d = new FT[nsqr];
 
-            int unsuccessSteps = 0;
             int stageNum = 1;
             bool br = false;
 
-            if (mOptions.mDoTracing) {
-                printArray("x", n, x);
-                printVector("sft", n, sft);
-                printArray("stepLenghts", n, stepLen.data());
-                printMatrix("dirs", n, n, dirs);
-            }
 
             auto inc = [this] (FT h) {
                 FT t = h;
@@ -169,9 +170,6 @@ namespace LOCSEARCH {
              * @return true if step along at least one direction was successful
              */
             auto step = [&] () {
-                if (mOptions.mDoTracing) {
-                    std::cout << "\n*** Step " << stageNum << " ***\n";
-                }
                 bool isStepSuccessful = false;
                 FT xn[n];
                 snowgoose::VecUtils::vecCopy(n, x, xn);
@@ -180,11 +178,6 @@ namespace LOCSEARCH {
                     const FT h = sft[i];
                     FT xtmp[n];
                     snowgoose::VecUtils::vecSaxpy(n, xn, &(dirs[i * n]), h, xtmp);
-                    if (mOptions.mDoTracing) {
-                        std::cout << "i = " << i << "\n";
-                        printArray("xtmp", n, xtmp);
-                        // std::cout << "ftmp = " << ftmp << "\n";
-                    }
                     if (snowgoose::BoxUtils::isIn(xtmp, *(mProblem.mBox))) {
                         FT ftmp = obj->func(xtmp);
 
@@ -209,9 +202,6 @@ namespace LOCSEARCH {
             };
 
             auto ortogonalize = [&] () {
-                if (mOptions.mDoTracing) {
-                    std::cout << "\n** Ortogonalize **" << "\n";
-                }
 
 
                 for (int i = 0; i < n; i++) {
@@ -240,23 +230,27 @@ namespace LOCSEARCH {
                     snowgoose::VecUtils::vecCopy(n, &(d[i * n]), &(dirs[i * n]));
                 }
 
-                if (mOptions.mDoTracing) {
-                    printMatrix("b", n, n, b);
-                    printMatrix("d", n, n, d);
-                    std::cout << "*************" << "\n";
-                }
             };
 
             while (!br) {
-                bool success = step();
-                unsuccessSteps = success ? 0 : unsuccessSteps + 1;
-                stageNum++;
-
-                if (mOptions.mDoTracing) {
-                    std::cout << (success ? "Success" : "Not success") << "\n";
-                    printArray("x", n, x);
-                    printVector("sft", n, sft);
+                FT xold[n];
+                snowgoose::VecUtils::vecCopy(n, x, xold);
+                const FT fold = fcur;
+                const bool success = step();
+                if(success) {
+                    const FT dist = snowgoose::VecUtils::vecDist(n, x, xold);
+                    const FT der = (fold - fcur) / dist;
+//                    std::cout << "der = " << der << std::endl;
+                    if(der < mOptions.mMinGrad) {
+                       if (mOptions.mDoTracing) 
+                            std::cout << "Stopped as gradient estimate is less than " << mOptions.mMinGrad << std::endl;
+                        break;
+                    }
+                    
                 }
+                
+                stageNum ++;
+
 
                 if (!success) {
                     br = true;
@@ -268,11 +262,12 @@ namespace LOCSEARCH {
                     }
 
                     if (!br) {
-                        fOld = fcur;
-                        snowgoose::VecUtils::vecCopy(n, x, xOld);
-                        ortogonalize();
-                        //sft = mOptions.mHInit;
-                        stepLen.assign(n, 0);
+                        //std::cout << snowgoose::VecUtils::vecPrint(n, stepLen.data()) << std::endl;
+                        if (mOptions.mDoOrt) {
+                            ortogonalize();
+                            //                                sft = mOptions.mHInit;
+                            stepLen.assign(n, 0);
+                        }
                     } else if (mOptions.mDoTracing) {
                         std::cout << "Stopped as all step lengths was less than " << mOptions.mHLB << "\n";
                     }
