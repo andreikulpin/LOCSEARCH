@@ -42,10 +42,13 @@ namespace LOCSEARCH {
          * Watches the current step
          * @param fval current best value found
          * @param current best point
-         * @param stpn step number
-         * @param gran - current granularity vector
+         * @param gran current granularity vector
+         * @param grad current gradient estimate
+         * @param success true if the coordinate descent was successful
+         * @param dirs ortogonalized directions
+         * @param stpn stage number
          */
-        using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, int stpn) >;
+        using Watcher = std::function<void(FT fval, const FT* x, const std::vector<FT>& gran, bool success, FT grad,  FT* dirs, int stpn) >;
 
         /**
          * Options for Rosenbrock method
@@ -203,7 +206,6 @@ namespace LOCSEARCH {
 
             auto ortogonalize = [&] () {
 
-
                 for (int i = 0; i < n; i++) {
                     if (stepLen[i] == 0) {
                         snowgoose::VecUtils::vecCopy(n, &(dirs[i * n]), a);
@@ -233,20 +235,26 @@ namespace LOCSEARCH {
             };
 
             while (!br) {
+                FT der;
                 FT xold[n];
                 snowgoose::VecUtils::vecCopy(n, x, xold);
                 const FT fold = fcur;
                 const bool success = step();
                 if(success) {
                     const FT dist = snowgoose::VecUtils::vecDist(n, x, xold);
-                    const FT der = (fold - fcur) / dist;
+                    der = (fold - fcur) / dist;
 //                    std::cout << "der = " << der << std::endl;
                     if(der < mOptions.mMinGrad) {
                        if (mOptions.mDoTracing) 
                             std::cout << "Stopped as gradient estimate is less than " << mOptions.mMinGrad << std::endl;
                         break;
                     }
-                    
+                    // HACK
+//                    const FT mult = 2. * std::abs(fcur) / der;
+//                    for(int i = 0; i < n; i ++) {
+//                        sft[i] = (sft[i] > 0 ? 1 : - 1) * mOptions.mHInit[i] * mult;
+//                    }
+                    // HACK
                 }
                 
                 stageNum ++;
@@ -279,7 +287,7 @@ namespace LOCSEARCH {
                 }
 
                 for (auto w : mWatchers) {
-                    w(fcur, x, sft, stageNum);
+                    w(fcur, x, sft, success, der, dirs, stageNum);
                 }
                 for (auto s : mStoppers) {
                     if (s(fcur, x, stageNum)) {
@@ -299,7 +307,19 @@ namespace LOCSEARCH {
 
         std::string about() const {
             std::ostringstream os;
-            os << "Rosenbrock method" << "\n";
+            os << "Rosenbrock method\n";
+            os << "options:\n";
+            os << "decrement = " << mOptions.mDec << "\n";
+            os << "increment = " << mOptions.mInc << "\n";
+            os << "initial step size = [ ";
+            for(auto a : mOptions.mHInit) 
+                os << " " << a;
+            os << " ]\n";
+            os << "bounds on step size = [" << mOptions.mHLB << " " << mOptions.mHUB << "]\n";
+            os << "lower bound on gradient = " << mOptions.mMinGrad << "\n";
+            os << "maxima stages = " << mOptions.mMaxStepsNumber << "\n";
+            os << (mOptions.mDoOrt ? "do ortogonalization\n" : "don't do ortogonalization\n");
+            os << (mOptions.mDoTracing ? "do tracing\n" : "don't do tracing\n");
             return os.str();
         }
 

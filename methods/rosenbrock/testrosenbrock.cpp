@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
     desc.getOptions().mHInit = std::vector<double>({1., 1.});
     desc.getOptions().mDoTracing = true;
-//    desc.getOptions().mDoOrt = false;
+    desc.getOptions().mDoOrt = false;
     desc.getOptions().mMinGrad = 1e-3;
     desc.getOptions().mMaxStepsNumber = 10000;
     desc.getOptions().mHLB = desc.getOptions().mMinGrad * 1e-2;
