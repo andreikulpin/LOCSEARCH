@@ -6,30 +6,24 @@
 
 /* 
  * File:   test_acd_bench.cpp
- * Author: andrei
+ * Author: kulpin
  *
  * Created on April 27, 2018, 12:48 AM
  */
 
 #include <iostream>
-#include <box/boxutils.hpp>
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
-#include <methods/lins/smartls/smartls.hpp>
-#include "acd_bench.hpp"
-#include <oneobj/contboxconstr/rosenbrock.hpp>
+#include "advancedcoordescent.hpp"
+#include <oneobj/contboxconstr/benchmarkfunc.hpp>
 
 using BM = Benchmark<double>;
 
-bool testBench(const BM& bm, double eps) {
-    const int dim = bm.getDim();
-    LOCSEARCH::BenchmarkAdvancedCoordinateDescent<double> searchMethod(bm);
+bool testBench(std::shared_ptr<BM> bm, double eps) {
+    const int dim = bm->getDim();
     
-    OPTITEST::RosenbrockProblemFactory fact(dim, bm.getBounds()[0].first,bm.getBounds()[0].second);
-    COMPI::MPProblem<double> *mpp = fact.getProblem();
-    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
-    mpp->mObjectives.pop_back();
-    mpp->mObjectives.push_back(obj);
+    OPTITEST::BenchmarkProblemFactory problemFactory(bm);
+    COMPI::MPProblem<double> *mpp = problemFactory.getProblem();
     
     LOCSEARCH::GoldenSecLS<double>* locs = new LOCSEARCH::GoldenSecLS<double>(*mpp);
     locs->getOptions().mSInit = 0.1;
@@ -37,6 +31,7 @@ bool testBench(const BM& bm, double eps) {
     locs->getOptions().mMaxBackSteps = 16;
     //locs->getOptions().mDoTracing = true;
     
+    LOCSEARCH::AdvancedCoordinateDescent<double> searchMethod(*mpp);
     searchMethod.getLineSearch().reset(locs);    
     searchMethod.getOptions().mHInit = .1;
     //searchMethod.getOptions().mDoTracing = true;
@@ -44,8 +39,8 @@ bool testBench(const BM& bm, double eps) {
     
     double x[dim];
     for (int i = 0; i < dim; i++) {
-        double a = bm.getBounds()[i].first;
-        double b = bm.getBounds()[i].second;
+        double a = bm->getBounds()[i].first;
+        double b = bm->getBounds()[i].second;
         x[i] = (b + a) / 2.0;
     }
     
@@ -54,15 +49,17 @@ bool testBench(const BM& bm, double eps) {
     std::cout << "*************Testing benchmark**********" << std::endl;
     searchMethod.search(x, v);
     std::cout << "v = " << v << std::endl;
-    std::cout << "the difference is " << v - bm.getGlobMinY() << std::endl;
+    std::cout << "the difference is " << v - bm->getGlobMinY() << std::endl;
 }
 
 int main(int argc, char** argv) {
     const int dim = argc > 1 ? atoi(argv[1]) : 50;
     double eps = argc > 2 ? atof(argv[2]) : 0.01;
-
-    RosenbrockBenchmark<double> rosenbrockBench(dim);
-    testBench(rosenbrockBench, eps);
+    
+    Benchmarks<double> tests;
+    for (auto bm : tests) {
+        testBench(bm, eps);
+    }
     return 0;
 }
 

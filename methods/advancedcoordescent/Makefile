@@ -1,5 +1,5 @@
 ROOT = ../../
-BINS = testadvancedcoordescent.exe 
+BINS = testadvancedcoordescent.exe test_acd_bench.exe
 TESTS = testadvancedcoordescent.exe 
 
 
