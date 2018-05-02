@@ -8,7 +8,7 @@
 #include <iostream>
 #include <funccnt.hpp>
 #include "testfuncs/manydim/benchmarks.hpp"
-#include "rosenbrock_method.hpp"
+#include "rosenbrock_bench.hpp"
 #include <oneobj/contboxconstr/benchmarkfunc.hpp>
 
 using BM = Benchmark<double>;
@@ -24,7 +24,7 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     //auto obj = dynamic_cast<std::shared_ptr<COMPI::FuncCnt<double>>>(mpp->mObjectives.at(0));
     //auto obj = std::make_shared<COMPI::FuncCnt<double>>(objPtr);
     
-    LOCSEARCH::RosenbrockMethod<double> searchMethod(*mpp);
+    LOCSEARCH::RosenbrockBenchMethod<double> searchMethod(*mpp, bm->getGlobMinY());
     searchMethod.getOptions().mHInit = initH;
     searchMethod.getOptions().mDoTracing = false;
     searchMethod.getOptions().mInc = 5.0;
@@ -34,7 +34,6 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     searchMethod.getOptions().mEps = eps;
     
     double x[dim];
-    
     /*for (int i = 0; i < dim; i++) {
         double a = bm->getBounds()[i].first;
         double b = bm->getBounds()[i].second;

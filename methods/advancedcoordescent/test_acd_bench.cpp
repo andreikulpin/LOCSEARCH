@@ -14,7 +14,7 @@
 #include <iostream>
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
-#include "advancedcoordescent.hpp"
+#include "acd_bench.hpp"
 #include <oneobj/contboxconstr/benchmarkfunc.hpp>
 
 using BM = Benchmark<double>;
@@ -31,13 +31,15 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     locs->getOptions().mMaxBackSteps = 16;
     locs->getOptions().mDoTracing = false;
     
-    LOCSEARCH::AdvancedCoordinateDescent<double> searchMethod(*mpp);
+    LOCSEARCH::AdvancedCoordinateDescentBench<double> searchMethod(*mpp, bm->getGlobMinY());
     searchMethod.getLineSearch().reset(locs);    
     searchMethod.getOptions().mHInit = .1;
     searchMethod.getOptions().mDoTracing = false;
     searchMethod.getOptions().mGradLB = 0;
-    searchMethod.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::NO_DESCENT;
-    searchMethod.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::UNIFORM_ADAPTATION;
+    searchMethod.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescentBench<double>::SearchTypes::NO_DESCENT;
+    searchMethod.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescentBench<double>::UNIFORM_ADAPTATION;
+    searchMethod.getOptions().maxStepsNumber = 100000;
+    searchMethod.getOptions().mEps = eps;
     
     double x[dim];
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
@@ -63,13 +65,13 @@ int main(int argc, char** argv) {
     const int dim = argc > 1 ? atoi(argv[1]) : 50;
     double eps = argc > 2 ? atof(argv[2]) : 0.01;
     
-    auto bm = std::make_shared<RosenbrockBenchmark<double>>(dim);
-    testBench(bm, eps);
+    /*auto bm = std::make_shared<RosenbrockBenchmark<double>>(dim);
+    testBench(bm, eps);*/
     
-    /*Benchmarks<double> tests;
+    Benchmarks<double> tests;
     for (auto bm : tests) {
         testBench(bm, eps);
-    }*/
+    }
     return 0;
 }
 
