@@ -18,6 +18,7 @@
 #include <mpproblem.hpp>
 #include <mputils.hpp>
 #include <common/lineseach.hpp>
+#include <cmath>
 
 
 namespace LOCSEARCH {

@@ -25,12 +25,12 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     //auto obj = std::make_shared<COMPI::FuncCnt<double>>(objPtr);
     
     LOCSEARCH::RosenbrockBenchMethod<double> searchMethod(*mpp, bm->getGlobMinY());
-    searchMethod.getOptions().mHInit = initH;
+    searchMethod.getOptions().mHInit = std::vector<double>(initH, initH + dim);
     searchMethod.getOptions().mDoTracing = false;
     searchMethod.getOptions().mInc = 5.0;
-    searchMethod.getOptions().mDec = - 0.5;
-    searchMethod.getOptions().maxUnsuccessStepsNumber = 50;
-    searchMethod.getOptions().maxStepsNumber = 100000;
+    searchMethod.getOptions().mDec = 0.5;
+    searchMethod.getOptions().mMaxStepsNumber = 100000;
+    searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad * 1e-2;
     searchMethod.getOptions().mEps = eps;
     
     double x[dim];
@@ -41,23 +41,19 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     }*/
     snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     
-    std::cout << "*************Testing benchmark**********" << std::endl;
-    std::cout << bm->getDesc() << std::endl;
-    
     double v;
-    searchMethod.search(x, v);
-    std::cout << "Found v = " << v << "\n";
-    std::cout << "the difference is " << v - bm->getGlobMinY() << std::endl;
-    std::cout << " at " << snowgoose::VecUtils::vecPrint(dim, x) << "\n";
     
+    searchMethod.search(x, v);
+    
+    std::cout << bm->getDesc() << "\t";
+    std::cout << bm->getGlobMinY() << "\t";
+    std::cout << v << "\t";
+
     int count;
-    //std::shared_ptr<COMPI::Functor<double>> objPtr = mpp->mObjectives.at(0).get();
     if (auto obj = dynamic_cast<COMPI::FuncCnt<double> *>(mpp->mObjectives.at(0).get())) {
         count = obj->mCounters.mFuncCalls;
     }
-    std::cout << "Number of objective calls is " << count << std::endl;
-    
-    std::cout << "****************************************" << std::endl << std::endl;
+    std::cout << count << std::endl;
 }
 
 int main(int argc, char** argv) {

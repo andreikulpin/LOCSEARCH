@@ -292,12 +292,12 @@ namespace LOCSEARCH {
 
                 if (stepNum >= mOptions.maxStepsNumber) {
                     br = true;
-                    std::cout << "Stopped as number of steps was too big\n";
+                    //std::cout << "Stopped as number of steps was too big\n";
                 }
                 
                 if (SGABS(fcur - mGlobMin) < mOptions.mEps) {
                     br = true;
-                    std::cout << "Stopped as result reached target accuracy\n";
+                    //std::cout << "Stopped as result reached target accuracy\n";
                 }
 
                 for (auto w : mWatchers) {

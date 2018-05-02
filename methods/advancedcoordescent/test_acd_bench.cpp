@@ -46,6 +46,7 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     
     double v;
     
+    /*
     std::cout << "*************Testing benchmark**********" << std::endl;
     std::cout << bm->getDesc() << std::endl;
     
@@ -59,6 +60,22 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
         count = obj->mCounters.mFuncCalls;
     }
     std::cout << "Number of objective calls is " << count << std::endl;
+     * */
+    
+    
+    searchMethod.search(x, v);
+    
+    if (SGABS(v - bm->getGlobMinY()) < 0.1) {
+        std::cout << bm->getDesc() << "\t";
+        std::cout << bm->getGlobMinY() << "\t";
+        std::cout << v << "\t";
+
+        int count;
+        if (auto obj = dynamic_cast<COMPI::FuncCnt<double> *>(mpp->mObjectives.at(0).get())) {
+            count = obj->mCounters.mFuncCalls;
+        }
+        std::cout << count << std::endl;
+    }
 }
 
 int main(int argc, char** argv) {
