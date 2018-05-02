@@ -29,37 +29,47 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     locs->getOptions().mSInit = 0.1;
     locs->getOptions().mDelta = 0.02;
     locs->getOptions().mMaxBackSteps = 16;
-    //locs->getOptions().mDoTracing = true;
+    locs->getOptions().mDoTracing = false;
     
     LOCSEARCH::AdvancedCoordinateDescent<double> searchMethod(*mpp);
     searchMethod.getLineSearch().reset(locs);    
     searchMethod.getOptions().mHInit = .1;
-    //searchMethod.getOptions().mDoTracing = true;
+    searchMethod.getOptions().mDoTracing = false;
     searchMethod.getOptions().mGradLB = 0;
+    searchMethod.getOptions().mSearchType = LOCSEARCH::AdvancedCoordinateDescent<double>::SearchTypes::NO_DESCENT;
+    searchMethod.getOptions().mVicinityAdaptation = LOCSEARCH::AdvancedCoordinateDescent<double>::UNIFORM_ADAPTATION;
     
     double x[dim];
-    for (int i = 0; i < dim; i++) {
-        double a = bm->getBounds()[i].first;
-        double b = bm->getBounds()[i].second;
-        x[i] = (b + a) / 2.0;
-    }
+    snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
     
     double v;
     
     std::cout << "*************Testing benchmark**********" << std::endl;
+    std::cout << bm->getDesc() << std::endl;
+    
     searchMethod.search(x, v);
     std::cout << "v = " << v << std::endl;
     std::cout << "the difference is " << v - bm->getGlobMinY() << std::endl;
+    std::cout << " at " << snowgoose::VecUtils::vecPrint(dim, x) << "\n";
+    
+    int count;
+    if (auto obj = dynamic_cast<COMPI::FuncCnt<double> *>(mpp->mObjectives.at(0).get())) {
+        count = obj->mCounters.mFuncCalls;
+    }
+    std::cout << "Number of objective calls is " << count << std::endl;
 }
 
 int main(int argc, char** argv) {
     const int dim = argc > 1 ? atoi(argv[1]) : 50;
     double eps = argc > 2 ? atof(argv[2]) : 0.01;
     
-    Benchmarks<double> tests;
+    auto bm = std::make_shared<RosenbrockBenchmark<double>>(dim);
+    testBench(bm, eps);
+    
+    /*Benchmarks<double> tests;
     for (auto bm : tests) {
         testBench(bm, eps);
-    }
+    }*/
     return 0;
 }
 
