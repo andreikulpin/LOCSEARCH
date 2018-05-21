@@ -76,7 +76,7 @@ bool testRosenbrockOld(std::shared_ptr<BM> bm, double eps) {
 }
 
 int main(int argc, char** argv) {
-    const int dim = 10;
+    const int dim = argc > 1 ? atoi(argv[1]) : 50;
     
     int minPow = 4;
     int maxPow = 16;

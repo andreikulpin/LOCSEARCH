@@ -30,7 +30,8 @@ bool testBench(std::shared_ptr<BM> bm, double eps) {
     searchMethod.getOptions().mInc = 5.0;
     searchMethod.getOptions().mDec = 0.5;
     searchMethod.getOptions().mMaxStepsNumber = 100000;
-    searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad * 1e-2;
+    searchMethod.getOptions().mMinGrad = eps;
+    searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad;
     searchMethod.getOptions().mEps = eps;
     
     double x[dim];
@@ -61,7 +62,10 @@ int main(int argc, char** argv) {
     const double eps = argc > 2 ? atof(argv[2]) : 0.01;
     
     /*auto bm = std::make_shared<RosenbrockBenchmark<double>>(dim);
-    testBench(bm, eps);*/
+    testBench(bm, eps);
+
+    auto bm2 = std::make_shared<Ackley3Benchmark<double>>();
+    testBench(bm2, eps);*/
     
     Benchmarks<double> tests;
     for (auto bm : tests) {

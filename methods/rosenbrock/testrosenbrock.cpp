@@ -18,20 +18,20 @@
  * 
  */
 int main(int argc, char** argv) {
-    const int n = 2;
-    OPTITEST::TestProblemFactory fact(n, -4, 8);
+    const int dim = 2;
+    OPTITEST::TestProblemFactory fact(dim, -4, 8);
     COMPI::MPProblem<double> *mpp = fact.getProblem();
     auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
     mpp->mObjectives.pop_back();
     mpp->mObjectives.push_back(obj);
 
-    double x[n] = {3, 3};
+    double x[dim] = {3, 3};
     LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
     desc.getOptions().mHInit = std::vector<double>({1., 1.});
     desc.getOptions().mDoTracing = true;
     desc.getOptions().mDoOrt = false;
-    desc.getOptions().mMinGrad = 1e-3;
     desc.getOptions().mMaxStepsNumber = 10000;
+    desc.getOptions().mMinGrad = 1e-3;
     desc.getOptions().mHLB = desc.getOptions().mMinGrad * 1e-2;
     
     double v;
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 
     std::cout << desc.about() << "\n";
     std::cout << "Found v = " << v << "\n";
-    std::cout << " at " << snowgoose::VecUtils::vecPrint(n, x) << "\n";
+    std::cout << " at " << snowgoose::VecUtils::vecPrint(dim, x) << "\n";
     std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     return 0;
 }

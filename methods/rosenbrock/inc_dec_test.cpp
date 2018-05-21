@@ -11,51 +11,48 @@
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
 #include <methods/lins/smartls/smartls.hpp>
-#include "rosenbrock_method.hpp"
+#include "rosenbrockmethod.hpp"
 
 /*
  * 
  */
 int main(int argc, char** argv) {
+    const int dim = argc > 1 ? atoi(argv[1]) : 50;
+    const double eps = argc > 2 ? atof(argv[2]) : 1e-3;
+
     float minInc = 4.0;
     float maxInc = 7.0;
     float incStep = 0.1;
     
-    float minDec = - 0.7;
-    float maxDec = - 0.3;
+    float minDec = 0.7;
+    float maxDec = 0.3;
     float decStep = 0.005;
     
     for (float inc = minInc; inc < maxInc; inc += incStep) {
         for (float dec = minDec; dec < maxDec; dec += decStep) {
-            const int n = 50;
-
-            OPTITEST::RosenbrockProblemFactory fact(n, -2, 5);
+            OPTITEST::RosenbrockProblemFactory fact(dim, -2, 5);
             COMPI::MPProblem<double> *mpp = fact.getProblem();
             auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
             mpp->mObjectives.pop_back();
             mpp->mObjectives.push_back(obj);
 
-            double initH[n];
-            snowgoose::VecUtils::vecSet(n, .1, initH);
+            double initH[dim];
+            snowgoose::VecUtils::vecSet(dim, .1, initH);
 
-            LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
-            desc.getOptions().mHInit = initH;
-            desc.getOptions().mDoTracing = false;
-            desc.getOptions().mEps = 1e-10;
-            desc.getOptions().mInc = inc;
-            desc.getOptions().mDec = dec;
-            desc.getOptions().maxUnsuccessStepsNumber = 50;
-            desc.getOptions().maxStepsNumber = 100000;
+            LOCSEARCH::RosenbrockMethod<double> searchMethod(*mpp);
+            searchMethod.getOptions().mHInit = std::vector<double>(initH, initH + dim);
+            searchMethod.getOptions().mDoTracing = false;
+            searchMethod.getOptions().mInc = inc;
+            searchMethod.getOptions().mDec = dec;
+            searchMethod.getOptions().mMaxStepsNumber = 100000;
+            searchMethod.getOptions().mMinGrad = eps;
+            searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad;
 
-            double x[n];
+            double x[dim];
             snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
 
-            if (argc > 2) {
-                desc.getOptions().mEps = atof(argv[2]);
-            }
-
             double v;
-            bool rv = desc.search(x, v);
+            bool rv = searchMethod.search(x, v);
             
             std::cout << "" << obj->mCounters.mFuncCalls << " ";
         }

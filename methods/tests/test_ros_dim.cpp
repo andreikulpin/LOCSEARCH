@@ -82,14 +82,13 @@ bool testRosenbrockOld(std::shared_ptr<BM> bm, double eps) {
 }
 
 int main(int argc, char** argv) {
-    //const int dim = argc > 1 ? atoi(argv[1]) : 50;
-    const double eps = 1e-8;
+    const double eps = argc > 1 ? atof(argv[2]) : 0.01;
     
-    int minN = 1;
-    int maxN = 20;
-    int stepN = 1;
+    int minDim = 1;
+    int maxDim = 20;
+    int stepDim = 1;
     
-    for (int i = minN; i <= maxN; i += stepN) {
+    for (int i = minDim; i <= maxDim; i += stepDim) {
         const int dim = i;
         
         auto bm = std::make_shared<RosenbrockBenchmark<double>>(dim);

@@ -11,44 +11,46 @@
 #include <funccnt.hpp>
 #include <methods/lins/goldsec/goldsec.hpp>
 #include <methods/lins/smartls/smartls.hpp>
-#include "rosenbrock_method.hpp"
+#include "rosenbrockmethod.hpp"
 
 /*
  * 
  */
 int main(int argc, char** argv) {
-    int minN = 2;
-    int maxN = 100;
-    int stepN = 1;
-    
-    for (int i = minN; i <= maxN; i += stepN) {
-        const int n = i;
+    const double eps = argc > 2 ? atof(argv[2]) : 1e-3;
 
-        OPTITEST::RosenbrockProblemFactory fact(n, -2, 5);
+    int minDim = 2;
+    int maxDim = 100;
+    int stepDim = 1;
+    
+    for (int i = minDim; i <= maxDim; i += stepDim) {
+        const int dim = i;
+
+        OPTITEST::RosenbrockProblemFactory fact(dim, -2, 5);
         COMPI::MPProblem<double> *mpp = fact.getProblem();
         auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
         mpp->mObjectives.pop_back();
         mpp->mObjectives.push_back(obj);
 
-        double initH[n];
-        snowgoose::VecUtils::vecSet(n, .1, initH);
+        double initH[dim];
+        snowgoose::VecUtils::vecSet(dim, .1, initH);
 
-        LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
-        desc.getOptions().mHInit = initH;
-        desc.getOptions().mDoTracing = false;
-        desc.getOptions().mEps = 1e-10;
-        desc.getOptions().mInc = 5.0;
-        desc.getOptions().mDec = - 0.5;
-        desc.getOptions().maxUnsuccessStepsNumber = 50;
-        desc.getOptions().maxStepsNumber = 100000;
+        LOCSEARCH::RosenbrockMethod<double> searchMethod(*mpp);
+        searchMethod.getOptions().mHInit = std::vector<double>(initH, initH + dim);
+        searchMethod.getOptions().mDoTracing = false;
+        searchMethod.getOptions().mInc = 5.0;
+        searchMethod.getOptions().mDec = 0.5;
+        searchMethod.getOptions().mMaxStepsNumber = 100000;
+        searchMethod.getOptions().mMinGrad = eps;
+        searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad;
 
-        double x[n];
+        double x[dim];
         snowgoose::BoxUtils::getCenter(*(mpp->mBox), x);
 
         double v;
-        bool rv = desc.search(x, v);
+        bool rv = searchMethod.search(x, v);
 
-        std::cout << "" << n << " ";
+        std::cout << "" << dim << " ";
         std::cout << "" << v << " ";
         std::cout << "" << obj->mCounters.mFuncCalls << "\n";
     }
