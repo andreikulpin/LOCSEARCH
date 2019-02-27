@@ -3,44 +3,36 @@
  * Author: Andrey Kulpin
  */
 
+#include <cstdlib>
 #include <iostream>
-#include <box/boxutils.hpp>
-#include <oneobj/contboxconstr/dejong.hpp>
-#include <oneobj/contboxconstr/rosenbrock.hpp>
-#include <oneobj/contboxconstr/ackley1.hpp>
-#include <funccnt.hpp>
-#include <methods/lins/goldsec/goldsec.hpp>
-#include <methods/lins/smartls/smartls.hpp>
 #include "rosenbrockmethod.hpp"
-#include "testfunc.hpp"
 
-/*
- * 
- */
+using namespace std;
+
+double func(const double* x) {
+    return 100 * SGSQR(x[1] - x[0] * x[0]) + SGSQR(1 - x[1]);
+}
+
 int main(int argc, char** argv) {
     const int dim = 2;
-    OPTITEST::TestProblemFactory fact(dim, -4, 8);
-    COMPI::MPProblem<double> *mpp = fact.getProblem();
-    auto obj = std::make_shared<COMPI::FuncCnt<double>>(mpp->mObjectives.at(0));
-    mpp->mObjectives.pop_back();
-    mpp->mObjectives.push_back(obj);
-
     double x[dim] = {3, 3};
-    LOCSEARCH::RosenbrockMethod<double> desc(*mpp);
-    desc.getOptions().mHInit = std::vector<double>({1., 1.});
-    desc.getOptions().mDoTracing = true;
-    desc.getOptions().mDoOrt = false;
-    desc.getOptions().mMaxStepsNumber = 10000;
-    desc.getOptions().mMinGrad = 1e-3;
-    desc.getOptions().mHLB = desc.getOptions().mMinGrad * 1e-2;
+    double a[dim], b[dim];
+    std::fill(a, a + dim, -4);
+    std::fill(b, b + dim, 8);
     
-    double v;
-    bool rv = desc.search(x, v);
-
-    std::cout << desc.about() << "\n";
+    LOCSEARCH::RosenbrockMethod<double> searchMethod;
+    searchMethod.getOptions().mHInit = std::vector<double>({1., 1.});
+    searchMethod.getOptions().mDoTracing = true;
+    searchMethod.getOptions().mDoOrt = false;
+    searchMethod.getOptions().mMaxStepsNumber = 10000;
+    searchMethod.getOptions().mMinGrad = 1e-3;
+    searchMethod.getOptions().mHLB = searchMethod.getOptions().mMinGrad * 1e-2;
+    
+    double v = searchMethod.search(dim, x, a, b, func);
+    
+    std::cout << searchMethod.about() << "\n";
     std::cout << "Found v = " << v << "\n";
     std::cout << " at " << snowgoose::VecUtils::vecPrint(dim, x) << "\n";
-    std::cout << "Number of objective calls is " << obj->mCounters.mFuncCalls << "\n";
     return 0;
 }
 

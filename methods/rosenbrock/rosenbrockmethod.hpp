@@ -10,10 +10,9 @@
 #include <vector>
 #include <functional>
 #include <memory>
-#include <solver.hpp>
+#include <common/bbsolver.hpp>
 #include <common/dummyls.hpp>
 #include <common/vec.hpp>
-#include <box/boxutils.hpp>
 #include <common/sgerrcheck.hpp>
 #include <mpproblem.hpp>
 #include <mputils.hpp>
@@ -27,7 +26,7 @@ namespace LOCSEARCH {
      * Rosenbrock method 
      * Description here: Rosenbrock, H. (1960). An automatic method for finding the greatest or least value of a function. The Computer Journal, 3(3), 175-184.
      */
-    template <typename FT> class RosenbrockMethod : public COMPI::Solver<FT> {
+    template <typename FT> class RosenbrockMethod : public BlackBoxSolver<FT> {
     public:
 
         /**
@@ -95,35 +94,17 @@ namespace LOCSEARCH {
         };
 
         /**
-         * The constructor
-         * @param prob - reference to the problem
-         * @param stopper - reference to the stopper
-         * @param ls - pointer to the line search
-         */
-        RosenbrockMethod(const COMPI::MPProblem<FT>& prob) :
-        mProblem(prob) {
-            unsigned int typ = COMPI::MPUtils::getProblemType(prob);
-            SG_ASSERT(typ == COMPI::MPUtils::ProblemTypes::BOXCONSTR | COMPI::MPUtils::ProblemTypes::CONTINUOUS | COMPI::MPUtils::ProblemTypes::SINGLEOBJ);
-        }
-
-        /**
          * Performs search
          * @param x start point and result
          * @param v  the resulting value
          * @return true if search converged and false otherwise
          */
-        bool search(FT* x, FT& v) override {
-            bool rv = false;
-            auto obj = mProblem.mObjectives.at(0);
-            const int n = mProblem.mVarTypes.size();
+        FT search(int n, FT* x, const FT* leftBound, const FT* rightBound, const std::function<FT ( const FT* )> &f) override {
             const int nsqr = n * n;
 
-            FT fcur = obj->func(x);
+            double v;
+            FT fcur = f(x);
             FT xOld[n];
-            snowgoose::VecUtils::vecCopy(n, x, xOld);
-
-
-            const snowgoose::Box<double>& box = *(mProblem.mBox);
 
             std::vector<FT> sft(mOptions.mHInit);
             std::vector<FT> stepLen(n, 0);
@@ -182,8 +163,8 @@ namespace LOCSEARCH {
                     const FT h = sft[i];
                     FT xtmp[n];
                     snowgoose::VecUtils::vecSaxpy(n, xn, &(dirs[i * n]), h, xtmp);
-                    if (snowgoose::BoxUtils::isIn(xtmp, *(mProblem.mBox))) {
-                        FT ftmp = obj->func(xtmp);
+                    if (isInBox(n, xtmp, leftBound, rightBound)) {
+                        FT ftmp = f(xtmp);
 
                         if (ftmp < fcur) {
                             isStepSuccessful = true;
@@ -303,7 +284,7 @@ namespace LOCSEARCH {
             delete [] a;
             delete [] b;
             delete [] d;
-            return rv;
+            return v;
         }
 
         std::string about() const {
@@ -349,8 +330,6 @@ namespace LOCSEARCH {
         }
 
     private:
-
-        const COMPI::MPProblem<FT>& mProblem;
         Options mOptions;
         std::vector<Stopper> mStoppers;
         std::vector<Watcher> mWatchers;
@@ -374,6 +353,19 @@ namespace LOCSEARCH {
                 std::cout << vector[i] << ", ";
             }
             std::cout << " ]" << "\n";
+        }
+        
+        bool isInBox(int n, const FT* x, const FT* a, const FT* b) {
+            for (int i = 0; i < n; i++) {
+                if (x[i] > b[i]) {
+                    return false;
+                }
+                
+                if (x[i] < a[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
     };
 }
